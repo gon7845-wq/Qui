@@ -10,11 +10,6 @@ interface Props {
   prefilledCode?: string | null;
 }
 
-/**
- * Home isn't a magazine page anymore — it's the empty table itself.
- * Two empty seats blink at the edges (host / guest), the center card
- * holds the brand + the chosen action.
- */
 export function Home({ prefilledCode }: Props) {
   const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError } =
     useStore();
@@ -48,99 +43,176 @@ export function Home({ prefilledCode }: Props) {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* The table fills the screen */}
       <div className="absolute inset-0 grid place-items-center px-3 py-6">
         <Table>
-          {/* Empty seats at the edge invite to play */}
-          <EmptySeats activeStage={stage} onPick={(s) => setStage(s)} />
+          {stage === "idle" && (
+            <>
+              <SeatInvite
+                key="host-seat"
+                label="OUVRIR"
+                sub="hôte"
+                x="22%"
+                y="32%"
+                onClick={() => setStage("host")}
+                accent="#C8A23F"
+              />
+              <SeatInvite
+                key="guest-seat"
+                label="REJOINDRE"
+                sub="invité·e"
+                x="78%"
+                y="68%"
+                onClick={() => setStage("guest")}
+                accent="#E8554A"
+              />
+            </>
+          )}
 
-          {/* Center card */}
           <AnimatePresence mode="wait">
             {stage === "idle" && (
               <CenterCard
                 key="brand"
-                widthRatio={0.7}
+                widthRatio={0.55}
                 variant="ghost"
-                className="!bg-transparent"
               >
-                <Brand size="lg" />
-                <div
-                  className="font-serif-i text-xl md:text-2xl mt-3"
-                  style={{ color: "var(--cream)" }}
-                >
-                  Un jeton, une accusation, un coupable.
-                </div>
-                <div
-                  className="label mt-6"
-                  style={{ color: "var(--gold-light)" }}
-                >
-                  ↓ CHOISIS UN SIÈGE ↓
+                <div className="grid place-items-center gap-3">
+                  <Brand size="lg" />
+                  <div
+                    className="font-serif-i"
+                    style={{
+                      fontSize: "clamp(14px, 2vmin, 20px)",
+                      color: "rgba(232,221,196,0.85)",
+                      maxWidth: "30ch",
+                    }}
+                  >
+                    Un jeton, une accusation, un coupable.
+                  </div>
                 </div>
               </CenterCard>
             )}
 
             {stage === "host" && (
-              <CenterCard key="host">
-                <PseudoStep
-                  title="Tu prends la table"
-                  hint="Tu fixes les règles."
-                  pseudo={pseudo}
-                  setPseudo={setPseudo}
-                  onSubmit={() => setStage("config")}
-                  canSubmit={canSubmitPseudo}
-                  cta="RÉGLER LA PARTIE →"
+              <CenterCard key="host" widthRatio={0.55} variant="placard">
+                <Header
+                  hint="Tu prends la table"
                   onBack={() => setStage("idle")}
                 />
+                <PrenomInput value={pseudo} onChange={setPseudo} autoFocus />
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <Button
+                    variant="gold"
+                    size="md"
+                    disabled={!canSubmitPseudo}
+                    onClick={() => setStage("config")}
+                  >
+                    SUITE →
+                  </Button>
+                </div>
               </CenterCard>
             )}
 
             {stage === "config" && (
-              <CenterCard key="config" widthRatio={0.7}>
-                <ConfigStep
-                  pseudo={pseudo}
-                  setPseudo={setPseudo}
-                  anonymous={anonymous}
-                  setAnonymous={setAnonymous}
-                  voteDuration={voteDuration}
-                  setVoteDuration={setVoteDuration}
-                  questionCount={questionCount}
-                  setQuestionCount={setQuestionCount}
-                  onSubmit={handleCreate}
-                  busy={busy}
-                  canSubmit={canSubmitPseudo}
+              <CenterCard key="config" widthRatio={0.62} variant="placard">
+                <Header
+                  hint={`Au nom de ${pseudo}`}
                   onBack={() => setStage("host")}
                 />
+                <div className="mt-4 grid gap-3 text-left">
+                  <Pair label="Durée du vote">
+                    {[5, 10, 15, 20].map((v) => (
+                      <Pip
+                        key={v}
+                        active={voteDuration === v}
+                        onClick={() => setVoteDuration(v)}
+                        label={`${v}s`}
+                      />
+                    ))}
+                  </Pair>
+                  <Pair label="Manches">
+                    {[5, 8, 12, 16].map((v) => (
+                      <Pip
+                        key={v}
+                        active={questionCount === v}
+                        onClick={() => setQuestionCount(v)}
+                        label={`${v}`}
+                      />
+                    ))}
+                  </Pair>
+                  <Pair label="Scrutin">
+                    <Pip
+                      active={!anonymous}
+                      onClick={() => setAnonymous(false)}
+                      label="PUBLIC"
+                    />
+                    <Pip
+                      active={anonymous}
+                      onClick={() => setAnonymous(true)}
+                      label="ANONYME"
+                    />
+                  </Pair>
+                </div>
+                <div className="mt-5 flex justify-end">
+                  <Button
+                    variant="gold"
+                    size="md"
+                    disabled={!canSubmitPseudo}
+                    onClick={handleCreate}
+                  >
+                    OUVRIR LA TABLE {busy ? "…" : "→"}
+                  </Button>
+                </div>
               </CenterCard>
             )}
 
             {stage === "guest" && (
-              <CenterCard key="guest">
-                <JoinStep
-                  pseudo={pseudo}
-                  setPseudo={setPseudo}
-                  code={code}
-                  setCode={setCode}
-                  onSubmit={handleJoin}
-                  busy={busy}
-                  canSubmit={canSubmitPseudo && code.length >= 4}
+              <CenterCard key="guest" widthRatio={0.58} variant="placard">
+                <Header
+                  hint="Tu rejoins une table"
                   onBack={() => setStage("idle")}
-                  prefilledCode={!!prefilledCode}
                 />
+                <CodeInput
+                  value={code}
+                  onChange={setCode}
+                  autoFocus={!!prefilledCode}
+                />
+                <div className="mt-3">
+                  <PrenomInput
+                    value={pseudo}
+                    onChange={setPseudo}
+                    autoFocus={!prefilledCode}
+                  />
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="gold"
+                    size="md"
+                    disabled={!canSubmitPseudo || code.length < 4}
+                    onClick={handleJoin}
+                  >
+                    REJOINDRE {busy ? "…" : "→"}
+                  </Button>
+                </div>
               </CenterCard>
             )}
           </AnimatePresence>
         </Table>
       </div>
 
-      {/* Error toast */}
       <AnimatePresence>
         {errorMsg && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 plaque px-5 py-2 text-sm"
-            style={{ background: "linear-gradient(180deg, #E8554A 0%, #9B2A22 100%)", color: "var(--cream)", borderColor: "#5A1610" }}
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-5 py-2 text-sm font-display tracking-wider"
+            style={{
+              background:
+                "linear-gradient(180deg, #E8554A 0%, #9B2A22 100%)",
+              color: "var(--cream)",
+              borderRadius: 3,
+              boxShadow:
+                "0 0 0 1.5px #5A1610, 0 10px 24px -8px rgba(0,0,0,0.6)",
+            }}
           >
             ⚠ {errorMsg}
           </motion.div>
@@ -150,37 +222,75 @@ export function Home({ prefilledCode }: Props) {
   );
 }
 
-/** Two empty chip-shaped seats around the table inviting to pick a role. */
-function EmptySeats({
-  activeStage,
-  onPick,
+function Header({
+  hint,
+  onBack,
 }: {
-  activeStage: "idle" | "host" | "guest" | "config";
-  onPick: (s: "host" | "guest") => void;
+  hint: string;
+  onBack: () => void;
 }) {
-  if (activeStage !== "idle") return null;
   return (
-    <>
-      {/* Host seat — top-left */}
-      <SeatInvite
-        label="OUVRIR LA TABLE"
-        sub="Hôte"
-        angle="20%"
-        x="22%"
-        y="22%"
-        onClick={() => onPick("host")}
-        accent="#C8A23F"
+    <div className="flex items-baseline justify-between">
+      <span className="label text-ink/55">{hint}</span>
+      <button
+        onClick={onBack}
+        className="label text-ink/55 hover:text-ink"
+      >
+        ← RETOUR
+      </button>
+    </div>
+  );
+}
+
+function PrenomInput({
+  value,
+  onChange,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (s: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block mt-3 text-left">
+      <div className="label text-ink/55 mb-1">TON PRÉNOM</div>
+      <input
+        autoFocus={autoFocus}
+        type="text"
+        maxLength={20}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Sam"
+        className="w-full bg-transparent font-serif-b text-2xl outline-none placeholder:text-ink/25 border-b border-ink/30 focus:border-ink pb-1 transition-colors"
+        style={{ color: "var(--ink)" }}
       />
-      {/* Guest seat — bottom-right */}
-      <SeatInvite
-        label="REJOINDRE"
-        sub="Invité·e"
-        x="78%"
-        y="78%"
-        onClick={() => onPick("guest")}
-        accent="#E8554A"
+    </label>
+  );
+}
+
+function CodeInput({
+  value,
+  onChange,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (s: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block text-left">
+      <div className="label text-ink/55 mb-1">CODE DE LA TABLE</div>
+      <input
+        autoFocus={autoFocus}
+        type="text"
+        maxLength={4}
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        placeholder="A2BC"
+        className="w-full bg-transparent font-display text-4xl tracking-[0.4em] outline-none placeholder:text-ink/20 border-b border-ink/30 focus:border-ink pb-1 transition-colors"
+        style={{ color: "var(--ruby-dark)" }}
       />
-    </>
+    </label>
   );
 }
 
@@ -194,7 +304,6 @@ function SeatInvite({
 }: {
   label: string;
   sub: string;
-  angle?: string;
   x: string;
   y: string;
   onClick: () => void;
@@ -202,41 +311,52 @@ function SeatInvite({
 }) {
   return (
     <motion.button
-      initial={{ scale: 0.6, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.2 }}
-      whileHover={{ scale: 1.05, y: -2 }}
-      whileTap={{ scale: 0.96 }}
+      initial={{ opacity: 0, scale: 0.6, x: "-50%", y: "-50%" }}
+      animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+      transition={{
+        type: "spring",
+        stiffness: 240,
+        damping: 22,
+        delay: 0.15,
+      }}
+      whileHover={{ scale: 1.06, y: "calc(-50% - 3px)" }}
+      whileTap={{ scale: 0.95, x: "-50%", y: "-50%" }}
       onClick={onClick}
-      className="absolute z-20"
+      className="absolute z-20 cursor-pointer"
       style={{
         left: x,
         top: y,
-        transform: "translate(-50%, -50%)",
       }}
     >
       <div
         className="relative grid place-items-center"
         style={{
-          width: "clamp(96px, 16vmin, 160px)",
-          height: "clamp(96px, 16vmin, 160px)",
+          width: "clamp(96px, 14vmin, 130px)",
+          height: "clamp(96px, 14vmin, 130px)",
           borderRadius: "50%",
-          border: `2px dashed ${accent}80`,
+          border: `1.5px dashed ${accent}AA`,
           background:
-            "radial-gradient(circle, rgba(232,221,196,0.07) 0%, transparent 70%)",
-          animation: "spot-pulse 3s ease-in-out infinite",
+            "radial-gradient(circle, rgba(232,221,196,0.06) 0%, transparent 70%)",
         }}
       >
-        <div className="text-center px-3">
+        <div className="text-center px-2">
           <div
             className="font-display tracking-wider"
-            style={{ color: accent, fontSize: "clamp(11px, 1.6vmin, 14px)" }}
+            style={{
+              color: accent,
+              fontSize: "clamp(11px, 1.5vmin, 13px)",
+              lineHeight: 1.1,
+            }}
           >
             {label}
           </div>
           <div
-            className="font-serif-i text-cream/75"
-            style={{ fontSize: "clamp(11px, 1.4vmin, 13px)", marginTop: 2 }}
+            className="font-serif-i"
+            style={{
+              color: "rgba(232,221,196,0.7)",
+              fontSize: "clamp(10px, 1.3vmin, 12px)",
+              marginTop: 4,
+            }}
           >
             {sub}
           </div>
@@ -246,230 +366,17 @@ function SeatInvite({
   );
 }
 
-function PseudoStep({
-  title,
-  hint,
-  pseudo,
-  setPseudo,
-  onSubmit,
-  canSubmit,
-  cta,
-  onBack,
-}: {
-  title: string;
-  hint: string;
-  pseudo: string;
-  setPseudo: (p: string) => void;
-  onSubmit: () => void;
-  canSubmit: boolean;
-  cta: string;
-  onBack: () => void;
-}) {
-  return (
-    <div className="text-left">
-      <div className="flex items-baseline justify-between">
-        <div className="label text-ink/55">{hint}</div>
-        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
-          ← RETOUR
-        </button>
-      </div>
-      <div className="font-serif-i text-3xl md:text-4xl mt-1 leading-tight">
-        {title}
-      </div>
-      <input
-        autoFocus
-        type="text"
-        maxLength={20}
-        value={pseudo}
-        onChange={(e) => setPseudo(e.target.value)}
-        placeholder="Ton prénom"
-        className="w-full bg-transparent font-display text-4xl md:text-5xl outline-none placeholder:text-ink/25 mt-4 border-b border-ink/20 pb-2"
-        style={{ color: "var(--ink)" }}
-      />
-      <div className="mt-5 flex justify-end">
-        <Button variant="gold" disabled={!canSubmit} onClick={onSubmit}>
-          {cta}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function ConfigStep({
-  pseudo,
-  setPseudo,
-  anonymous,
-  setAnonymous,
-  voteDuration,
-  setVoteDuration,
-  questionCount,
-  setQuestionCount,
-  onSubmit,
-  busy,
-  canSubmit,
-  onBack,
-}: {
-  pseudo: string;
-  setPseudo: (p: string) => void;
-  anonymous: boolean;
-  setAnonymous: (b: boolean) => void;
-  voteDuration: number;
-  setVoteDuration: (n: number) => void;
-  questionCount: number;
-  setQuestionCount: (n: number) => void;
-  onSubmit: () => void;
-  busy: boolean;
-  canSubmit: boolean;
-  onBack: () => void;
-}) {
-  return (
-    <div className="text-left">
-      <div className="flex items-baseline justify-between">
-        <div className="label text-ink/55">Règles de la table</div>
-        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
-          ← RETOUR
-        </button>
-      </div>
-      <div className="font-serif-i text-2xl md:text-3xl mt-1 leading-tight">
-        Au nom de :
-        <input
-          type="text"
-          maxLength={20}
-          value={pseudo}
-          onChange={(e) => setPseudo(e.target.value)}
-          className="bg-transparent font-serif-b outline-none border-b border-ink/30 ml-2 w-[8ch]"
-          style={{ color: "var(--ink)" }}
-        />
-      </div>
-
-      <div className="mt-5 space-y-4">
-        <Pair label="Durée du vote" value={`${voteDuration}s`}>
-          <div className="flex gap-2">
-            {[5, 10, 15, 20].map((v) => (
-              <Pip
-                key={v}
-                active={voteDuration === v}
-                onClick={() => setVoteDuration(v)}
-                label={`${v}s`}
-              />
-            ))}
-          </div>
-        </Pair>
-        <Pair label="Manches" value={`${questionCount}`}>
-          <div className="flex gap-2">
-            {[5, 8, 12, 16].map((v) => (
-              <Pip
-                key={v}
-                active={questionCount === v}
-                onClick={() => setQuestionCount(v)}
-                label={`${v}`}
-              />
-            ))}
-          </div>
-        </Pair>
-        <Pair label="Votes" value={anonymous ? "Anonymes" : "Publics"}>
-          <Pip
-            active={anonymous}
-            onClick={() => setAnonymous(!anonymous)}
-            label="ANONYMES"
-          />
-        </Pair>
-      </div>
-
-      <div className="mt-6 flex justify-end">
-        <Button
-          variant="gold"
-          size="lg"
-          disabled={!canSubmit}
-          onClick={onSubmit}
-        >
-          OUVRIR LA TABLE {busy ? "..." : "→"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function JoinStep({
-  pseudo,
-  setPseudo,
-  code,
-  setCode,
-  onSubmit,
-  busy,
-  canSubmit,
-  onBack,
-  prefilledCode,
-}: {
-  pseudo: string;
-  setPseudo: (p: string) => void;
-  code: string;
-  setCode: (c: string) => void;
-  onSubmit: () => void;
-  busy: boolean;
-  canSubmit: boolean;
-  onBack: () => void;
-  prefilledCode: boolean;
-}) {
-  return (
-    <div className="text-left">
-      <div className="flex items-baseline justify-between">
-        <div className="label text-ink/55">Tu rejoins une table</div>
-        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
-          ← RETOUR
-        </button>
-      </div>
-      <div className="mt-3">
-        <label className="label text-ink/55">Code de la table</label>
-        <input
-          autoFocus={!!prefilledCode}
-          type="text"
-          maxLength={4}
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="A2BC"
-          className="block w-full bg-transparent font-display text-5xl md:text-6xl outline-none placeholder:text-ink/20 tracking-[0.3em] mt-1 border-b border-ink/20 pb-2"
-          style={{ color: "var(--ruby-dark)" }}
-        />
-      </div>
-      <div className="mt-4">
-        <label className="label text-ink/55">Ton prénom</label>
-        <input
-          autoFocus={!prefilledCode}
-          type="text"
-          maxLength={20}
-          value={pseudo}
-          onChange={(e) => setPseudo(e.target.value)}
-          placeholder="Sam"
-          className="block w-full bg-transparent font-serif-b text-3xl outline-none placeholder:text-ink/25 mt-1 border-b border-ink/20 pb-2"
-          style={{ color: "var(--ink)" }}
-        />
-      </div>
-      <div className="mt-5 flex justify-end">
-        <Button variant="gold" disabled={!canSubmit} onClick={onSubmit}>
-          REJOINDRE {busy ? "..." : "→"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function Pair({
   label,
-  value,
   children,
 }: {
   label: string;
-  value: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-      <div>
-        <div className="label text-ink/55">{label}</div>
-        <div className="font-serif-i text-xl">{value}</div>
-      </div>
-      <div>{children}</div>
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+      <div className="label text-ink/55">{label}</div>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
 }
@@ -486,10 +393,10 @@ function Pip({
   return (
     <button
       onClick={onClick}
-      className={`font-display tracking-wider text-[11px] h-8 px-3 rounded-full border transition-all ${
+      className={`font-display tracking-wider text-[10px] h-7 px-3 rounded-full border transition-all ${
         active
           ? "bg-wood-900 text-cream border-wood-900"
-          : "bg-transparent text-ink/70 border-ink/30 hover:border-ink"
+          : "bg-transparent text-ink/65 border-ink/25 hover:border-ink hover:text-ink"
       }`}
     >
       {label}

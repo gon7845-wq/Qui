@@ -47,22 +47,25 @@ export function Table({ children, className = "" }: Props) {
             "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.4  0 0 0 0 0.4  0 0 0 0.7 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
         }}
       />
-      {/* Faint engraved monogram */}
+      {/* Subtle engraved monogram at the very top, like a casino table logo */}
       <div
         aria-hidden
-        className="absolute inset-0 grid place-items-center pointer-events-none"
-        style={{ opacity: 0.08 }}
+        className="absolute top-[8%] left-1/2 pointer-events-none"
+        style={{
+          transform: "translateX(-50%)",
+          opacity: 0.13,
+        }}
       >
         <span
           className="font-display"
           style={{
-            fontSize: "26vmin",
-            color: "#E8DDC4",
-            letterSpacing: "-0.04em",
+            fontSize: "min(7vmin, 56px)",
+            color: "#C8A23F",
+            letterSpacing: "0.15em",
             lineHeight: 1,
           }}
         >
-          QUI?
+          ✦ QUI ? ✦
         </span>
       </div>
       {children}

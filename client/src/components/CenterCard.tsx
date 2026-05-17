@@ -3,32 +3,47 @@ import type { ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
-  /** ratio of table inner radius for the card max width */
   widthRatio?: number;
   flipKey?: string | number;
-  variant?: "card" | "plaque" | "ghost";
+  variant?: "card" | "plaque" | "ghost" | "placard";
   className?: string;
 }
 
 /**
- * The card that lives at the center of the felt: question, code, verdict, etc.
- * Absolutely positioned to the center of its parent (the felt).
+ * The card at the center of the felt.
+ *
+ * IMPORTANT: we use Framer Motion's x/y motion props (with "-50%" strings)
+ * so that the centering translate composes with scale/rotateY animations.
+ * Mixing Tailwind's `-translate-x-1/2` with Framer-managed transforms
+ * causes Framer to overwrite the centering — keep all transforms inside
+ * the motion props.
  */
 export function CenterCard({
   children,
-  widthRatio = 0.58,
+  widthRatio = 0.6,
   flipKey,
   variant = "card",
   className = "",
 }: Props) {
-  const cardStyles =
+  const cardStyles: React.CSSProperties =
     variant === "card"
       ? {
           background:
             "linear-gradient(180deg, #F7EFD8 0%, #F0E5D0 60%, #D8CBB1 100%)",
           color: "#14110D",
           boxShadow:
-            "0 0 0 1.5px #C8A23F, 0 24px 60px -16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.6)",
+            "0 0 0 1.5px rgba(200,162,63,0.6), 0 24px 60px -16px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.6)",
+          borderRadius: "6px",
+        }
+      : variant === "placard"
+      ? {
+          // Slim casino-dealer style placard — narrow, ivory, gold edge
+          background:
+            "linear-gradient(180deg, #F0E5D0 0%, #D8CBB1 100%)",
+          color: "#14110D",
+          boxShadow:
+            "0 0 0 1px rgba(200,162,63,0.7), 0 1px 0 rgba(255,255,255,0.5) inset, 0 16px 40px -12px rgba(0,0,0,0.6)",
+          borderRadius: "3px",
         }
       : variant === "plaque"
       ? {
@@ -37,63 +52,35 @@ export function CenterCard({
           color: "#1A0C08",
           boxShadow:
             "0 0 0 2px #5D4810, 0 0 0 4px rgba(232,221,196,0.15), 0 24px 60px -16px rgba(0,0,0,0.85)",
+          borderRadius: "4px",
         }
       : { background: "transparent", color: "var(--cream)" };
 
   return (
     <motion.div
       key={flipKey}
-      initial={{ rotateY: -90, opacity: 0, scale: 0.7 }}
-      animate={{ rotateY: 0, opacity: 1, scale: 1 }}
-      exit={{ rotateY: 90, opacity: 0, scale: 0.7 }}
+      initial={{ opacity: 0, scale: 0.92, x: "-50%", y: "-50%" }}
+      animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+      exit={{ opacity: 0, scale: 0.92, x: "-50%", y: "-50%" }}
       transition={{
-        type: "spring",
-        stiffness: 220,
-        damping: 24,
+        duration: 0.35,
+        ease: [0.16, 1, 0.3, 1],
       }}
-      className={`absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 ${className}`}
+      className={`absolute z-30 ${className}`}
       style={{
+        left: "50%",
+        top: "50%",
         width: `${widthRatio * 100}%`,
-        maxWidth: "min(58vmin, 540px)",
-        borderRadius: "6px",
-        padding: "clamp(18px, 3.5vmin, 36px)",
+        maxWidth: "min(58vmin, 520px)",
+        padding:
+          variant === "placard"
+            ? "clamp(14px, 2.5vmin, 22px) clamp(20px, 3.5vmin, 32px)"
+            : "clamp(18px, 3vmin, 30px)",
         textAlign: "center",
         ...cardStyles,
       }}
     >
-      {/* Corner notches for "card" only */}
-      {variant === "card" && (
-        <>
-          <Corner pos="tl" />
-          <Corner pos="tr" />
-          <Corner pos="bl" />
-          <Corner pos="br" />
-        </>
-      )}
-      <div className="relative z-10">{children}</div>
+      {children}
     </motion.div>
-  );
-}
-
-function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
-  const offset = "10px";
-  const styleByPos: Record<typeof pos, React.CSSProperties> = {
-    tl: { top: offset, left: offset },
-    tr: { top: offset, right: offset, transform: "scaleX(-1)" },
-    bl: { bottom: offset, left: offset, transform: "scaleY(-1)" },
-    br: { bottom: offset, right: offset, transform: "scale(-1, -1)" },
-  };
-  return (
-    <span
-      aria-hidden
-      className="absolute"
-      style={{
-        ...styleByPos[pos],
-        width: 16,
-        height: 16,
-        borderLeft: "1px solid rgba(20,17,13,0.5)",
-        borderTop: "1px solid rgba(20,17,13,0.5)",
-      }}
-    />
   );
 }
