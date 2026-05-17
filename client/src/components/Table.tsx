@@ -18,8 +18,8 @@ export function Table({ children, className = "" }: Props) {
     <div
       className={`relative ${className}`}
       style={{
-        aspectRatio: "1 / 1",
-        maxWidth: "min(92vw, 78vh)",
+        width: "min(92vw, 82vh)",
+        height: "min(92vw, 82vh)",
         margin: "0 auto",
       }}
     >
