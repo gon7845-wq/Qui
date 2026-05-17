@@ -52,11 +52,11 @@ export const useStore = create<State>((set, get) => ({
     });
     socket.on("lobby:update", (lobby: Lobby) => {
       set({ lobby });
-      const state = get();
-      if (lobby.state === "question" && state.view !== "game") {
-        set({ view: "game", reveal: null });
-      } else if (lobby.state === "ended" && state.view !== "final") {
-        // wait for game:end event
+      if (lobby.state === "question") {
+        const { view, reveal } = get();
+        if (view !== "game" || reveal) {
+          set({ view: "game", reveal: null });
+        }
       }
     });
     socket.on("game:reveal", (data: RevealData) => {
