@@ -1,0 +1,390 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useStore } from "../store";
+import { Brand } from "../components/Brand";
+import { Button } from "../components/Button";
+import { Marquee } from "../components/Marquee";
+
+const TEASE_QUESTIONS = [
+  "QUI EST LE PLUS GENTIL ?",
+  "QUI MENT LE PLUS ?",
+  "QUI SERA RICHE ?",
+  "QUI FINIRA SEUL ?",
+  "QUI A LE PLUS GRAND CŒUR ?",
+  "QUI SURVIVRAIT À KOH-LANTA ?",
+  "QUI EST LE PLUS TOXIQUE ?",
+  "QUI SE MARIERA EN PREMIER ?",
+];
+
+interface Props {
+  prefilledCode?: string | null;
+}
+
+export function Home({ prefilledCode }: Props) {
+  const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError } =
+    useStore();
+  const [mode, setMode] = useState<"main" | "create" | "join">(
+    prefilledCode ? "join" : "main"
+  );
+  const [code, setCode] = useState(prefilledCode ?? "");
+  const [busy, setBusy] = useState(false);
+
+  // Settings (create)
+  const [anonymous, setAnonymous] = useState(false);
+  const [voteDuration, setVoteDuration] = useState(10);
+  const [questionCount, setQuestionCount] = useState(8);
+
+  const canSubmit = pseudo.trim().length >= 1 && !busy;
+
+  async function handleCreate() {
+    if (!canSubmit) return;
+    setBusy(true);
+    const r = await createLobby({ anonymous, voteDuration, questionCount });
+    setBusy(false);
+    if (!r.ok) setError(r.error ?? "Erreur");
+  }
+
+  async function handleJoin() {
+    if (!canSubmit || !code.trim()) return;
+    setBusy(true);
+    const r = await joinLobby(code);
+    setBusy(false);
+    if (!r.ok) setError(r.error ?? "Erreur");
+  }
+
+  return (
+    <div className="relative z-10 min-h-screen">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-6 pt-6 md:px-10">
+        <div className="overline text-white/50">
+          Nº01 — JEU DE VOTE
+        </div>
+        <div className="overline text-white/50 hidden sm:block">
+          ÉD. 2026 / PARIS
+        </div>
+      </header>
+
+      <main className="px-6 md:px-10 pt-8 md:pt-12 pb-32">
+        <div className="mx-auto max-w-6xl">
+          {/* Hero: massive italic mark */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative"
+          >
+            <div className="overline text-white/40 mb-4">
+              ↳ UN JEU DE VOTE ENTRE POTES
+            </div>
+            <h1 className="italic-display text-[28vw] md:text-[20vw] leading-[0.85] tracking-tight">
+              Qui
+              <span style={{ color: "var(--acid)" }}> ?</span>
+            </h1>
+            <div className="hr-line mt-8" />
+            <p className="mt-8 max-w-xl text-lg text-white/70 leading-snug">
+              Une question. <em className="italic-display text-2xl">5 secondes.</em> Un coupable.
+              <br />
+              Pas d'inscription. Juste un pseudo, un lien, et c'est parti.
+            </p>
+          </motion.div>
+
+          {/* Action panel */}
+          <AnimatePresence mode="wait">
+            {mode === "main" && (
+              <motion.div
+                key="main"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="mt-16 grid gap-4 md:grid-cols-2 max-w-3xl"
+              >
+                <ActionCard
+                  badge="01"
+                  title="Créer une partie"
+                  desc="Tu choisis les règles. Tu lances l'enfer."
+                  cta="CRÉER UN LOBBY →"
+                  variant="acid"
+                  onClick={() => setMode("create")}
+                />
+                <ActionCard
+                  badge="02"
+                  title="Rejoindre"
+                  desc="Quelqu'un t'a envoyé un code ?"
+                  cta="REJOINDRE →"
+                  variant="ghost"
+                  onClick={() => setMode("join")}
+                />
+              </motion.div>
+            )}
+
+            {mode === "create" && (
+              <motion.section
+                key="create"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="mt-16 max-w-2xl"
+              >
+                <div className="mb-6 flex items-baseline justify-between">
+                  <h2 className="italic-display text-5xl">Nouvelle partie</h2>
+                  <button
+                    onClick={() => setMode("main")}
+                    className="overline text-white/50 hover:text-white"
+                  >
+                    ← RETOUR
+                  </button>
+                </div>
+
+                <Field label="Ton pseudo" hint="20 caractères max">
+                  <input
+                    autoFocus
+                    type="text"
+                    maxLength={20}
+                    value={pseudo}
+                    onChange={(e) => setPseudo(e.target.value)}
+                    placeholder="Sam"
+                    className="w-full bg-transparent text-3xl italic-display outline-none placeholder:text-white/20"
+                  />
+                </Field>
+
+                <Field label="Durée du vote" hint={`${voteDuration} sec`}>
+                  <input
+                    type="range"
+                    min={5}
+                    max={20}
+                    step={1}
+                    value={voteDuration}
+                    onChange={(e) => setVoteDuration(Number(e.target.value))}
+                    className="w-full accent-acid"
+                  />
+                </Field>
+
+                <Field
+                  label="Nombre de questions"
+                  hint={`${questionCount} questions`}
+                >
+                  <input
+                    type="range"
+                    min={3}
+                    max={20}
+                    step={1}
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(Number(e.target.value))}
+                    className="w-full accent-acid"
+                  />
+                </Field>
+
+                <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div>
+                    <div className="font-semibold tracking-tight">
+                      Votes anonymes
+                    </div>
+                    <div className="mt-1 text-sm text-white/50">
+                      Si actif, on voit le score mais pas qui a voté quoi.
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={anonymous}
+                    onChange={() => setAnonymous(!anonymous)}
+                  />
+                </div>
+
+                <div className="mt-8">
+                  <Button
+                    variant="acid"
+                    size="lg"
+                    fullWidth
+                    disabled={!canSubmit}
+                    onClick={handleCreate}
+                  >
+                    LANCER LE LOBBY {busy ? "..." : "→"}
+                  </Button>
+                </div>
+              </motion.section>
+            )}
+
+            {mode === "join" && (
+              <motion.section
+                key="join"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="mt-16 max-w-2xl"
+              >
+                <div className="mb-6 flex items-baseline justify-between">
+                  <h2 className="italic-display text-5xl">Rejoindre</h2>
+                  <button
+                    onClick={() => setMode("main")}
+                    className="overline text-white/50 hover:text-white"
+                  >
+                    ← RETOUR
+                  </button>
+                </div>
+
+                <Field label="Ton pseudo">
+                  <input
+                    autoFocus={!prefilledCode}
+                    type="text"
+                    maxLength={20}
+                    value={pseudo}
+                    onChange={(e) => setPseudo(e.target.value)}
+                    placeholder="Sam"
+                    className="w-full bg-transparent text-3xl italic-display outline-none placeholder:text-white/20"
+                  />
+                </Field>
+
+                <Field label="Code du lobby">
+                  <input
+                    autoFocus={!!prefilledCode}
+                    type="text"
+                    maxLength={4}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    placeholder="A2BC"
+                    className="w-full bg-transparent font-mono text-5xl uppercase tracking-[0.3em] outline-none placeholder:text-white/20"
+                  />
+                </Field>
+
+                <div className="mt-8">
+                  <Button
+                    variant="acid"
+                    size="lg"
+                    fullWidth
+                    disabled={!canSubmit || code.length < 4}
+                    onClick={handleJoin}
+                  >
+                    REJOINDRE {busy ? "..." : "→"}
+                  </Button>
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
+
+      {/* Marquee teaser */}
+      <div className="fixed bottom-0 left-0 right-0">
+        <Marquee items={TEASE_QUESTIONS} />
+      </div>
+
+      {/* Error toast */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full border border-cherry/40 bg-cherry/20 px-5 py-3 backdrop-blur"
+          >
+            <span className="overline text-cherry">⚠ {errorMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ActionCard({
+  badge,
+  title,
+  desc,
+  cta,
+  variant,
+  onClick,
+}: {
+  badge: string;
+  title: string;
+  desc: string;
+  cta: string;
+  variant: "acid" | "ghost";
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-3xl border p-7 text-left transition-colors ${
+        variant === "acid"
+          ? "border-acid bg-acid text-ink-950"
+          : "border-white/15 bg-white/[0.03] hover:border-white/30 text-white"
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <span
+          className={`overline ${variant === "acid" ? "text-ink-950/60" : "text-white/40"}`}
+        >
+          {badge}
+        </span>
+        <span
+          className={`overline ${variant === "acid" ? "text-ink-950/60" : "text-white/40"}`}
+        >
+          →
+        </span>
+      </div>
+      <div className="mt-12">
+        <div className="italic-display text-5xl">{title}</div>
+        <div
+          className={`mt-2 text-sm ${variant === "acid" ? "text-ink-950/70" : "text-white/50"}`}
+        >
+          {desc}
+        </div>
+        <div
+          className={`mt-8 overline ${variant === "acid" ? "text-ink-950" : "text-acid"}`}
+        >
+          {cta}
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-white/10 py-5">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="overline text-white/50">{label}</span>
+        {hint && <span className="overline text-white/30">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`relative h-7 w-12 rounded-full border transition-colors ${
+        checked ? "bg-acid border-acid" : "bg-white/10 border-white/15"
+      }`}
+    >
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className={`absolute top-0.5 h-5 w-5 rounded-full shadow-md ${
+          checked ? "left-[22px] bg-ink-950" : "left-0.5 bg-white"
+        }`}
+      />
+    </button>
+  );
+}
