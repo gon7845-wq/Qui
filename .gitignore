@@ -9,3 +9,5 @@ build/
 .cache/
 .railway/
 .claude/settings.local.json
+.playwright-mcp/
+*.png
