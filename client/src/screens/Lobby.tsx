@@ -42,7 +42,7 @@ export function Lobby() {
           <div className="overline text-pearl/40 mb-2">
             ↳ INVITE TES POTES
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-6 border-y border-white/10 py-8">
+          <div className="flex flex-wrap items-end justify-between gap-6 py-8">
             <div>
               <div className="overline text-pearl/55 mb-2">CODE</div>
               <div className="italic-display iridescent-text text-[18vw] md:text-[10vw] leading-[0.85] tracking-tight">

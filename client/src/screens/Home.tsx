@@ -369,12 +369,12 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-white/10 py-5">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="mb-3">
+      <div className="mb-2 flex items-center justify-between px-1">
         <span className="overline text-pearl/55">{label}</span>
-        {hint && <span className="overline text-pearl/30">{hint}</span>}
+        {hint && <span className="overline text-pearl/35">{hint}</span>}
       </div>
-      {children}
+      <div className="glass rounded-2xl px-5 py-4">{children}</div>
     </div>
   );
 }

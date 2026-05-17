@@ -71,7 +71,7 @@ function QuestionView() {
       transition={{ duration: 0.4 }}
     >
       {/* Question reveal */}
-      <div className="relative border-y border-white/10 py-10 mt-6">
+      <div className="relative mt-10 mb-2 rounded-3xl glass-strong px-6 py-10 md:px-10 md:py-12">
         <motion.h1
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -157,7 +157,7 @@ function RevealView({
       transition={{ duration: 0.4 }}
     >
       {/* Question banner (smaller) */}
-      <div className="mt-6 border-y border-white/10 py-6">
+      <div className="mt-6 rounded-3xl glass px-6 py-6">
         <div className="overline text-pearl/45 mb-2">LA QUESTION ÉTAIT</div>
         <h2 className="italic-display text-3xl md:text-5xl tracking-tight leading-tight text-pearl/85">
           {reveal.question}
