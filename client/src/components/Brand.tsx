@@ -1,29 +1,33 @@
 import { motion } from "framer-motion";
 
 interface Props {
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
 const sizes = {
-  sm: "text-3xl",
-  md: "text-5xl",
-  lg: "text-7xl md:text-8xl",
-  xl: "text-[28vw] md:text-[20vw] leading-[0.78]",
+  sm: "text-2xl",
+  md: "text-4xl",
+  lg: "text-6xl md:text-7xl",
 };
 
 export function Brand({ size = "md", className = "" }: Props) {
   return (
     <span
-      className={`font-stamp ${sizes[size]} ${className}`}
-      style={{ color: "var(--paper)", letterSpacing: "-0.01em" }}
+      className={`font-display ${sizes[size]} ${className}`}
+      style={{
+        background:
+          "linear-gradient(180deg, #E9CB6F 0%, #C8A23F 50%, #8C6F22 100%)",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        color: "transparent",
+        textShadow: "0 0 30px rgba(200,162,63,0.25)",
+      }}
     >
       QUI
       <motion.span
-        initial={{ opacity: 0.5 }}
-        animate={{ opacity: [0.5, 1, 0.5] }}
+        animate={{ opacity: [0.55, 1, 0.55] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        style={{ color: "var(--vermillion)" }}
       >
         ?
       </motion.span>

@@ -2,28 +2,24 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "../store";
 import { Button } from "../components/Button";
-import { Marquee } from "../components/Marquee";
 import { Brand } from "../components/Brand";
-
-const TEASE = [
-  "QUI EST LE PLUS TOXIQUE ?",
-  "QUI MENT LE PLUS ?",
-  "QUI FINIRA SEUL ?",
-  "QUI A LE PLUS GRAND CŒUR ?",
-  "QUI SURVIVRAIT À KOH-LANTA ?",
-  "QUI SE MARIERA EN PREMIER ?",
-  "QUI A DÉJÀ STALKÉ SON EX ?",
-];
+import { Table } from "../components/Table";
+import { CenterCard } from "../components/CenterCard";
 
 interface Props {
   prefilledCode?: string | null;
 }
 
+/**
+ * Home isn't a magazine page anymore — it's the empty table itself.
+ * Two empty seats blink at the edges (host / guest), the center card
+ * holds the brand + the chosen action.
+ */
 export function Home({ prefilledCode }: Props) {
   const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError } =
     useStore();
-  const [mode, setMode] = useState<"main" | "create" | "join">(
-    prefilledCode ? "join" : "main"
+  const [stage, setStage] = useState<"idle" | "host" | "guest" | "config">(
+    prefilledCode ? "guest" : "idle"
   );
   const [code, setCode] = useState(prefilledCode ?? "");
   const [busy, setBusy] = useState(false);
@@ -32,10 +28,10 @@ export function Home({ prefilledCode }: Props) {
   const [voteDuration, setVoteDuration] = useState(10);
   const [questionCount, setQuestionCount] = useState(8);
 
-  const canSubmit = pseudo.trim().length >= 1 && !busy;
+  const canSubmitPseudo = pseudo.trim().length >= 1 && !busy;
 
   async function handleCreate() {
-    if (!canSubmit) return;
+    if (!canSubmitPseudo) return;
     setBusy(true);
     const r = await createLobby({ anonymous, voteDuration, questionCount });
     setBusy(false);
@@ -43,7 +39,7 @@ export function Home({ prefilledCode }: Props) {
   }
 
   async function handleJoin() {
-    if (!canSubmit || !code.trim()) return;
+    if (!canSubmitPseudo || code.trim().length < 4) return;
     setBusy(true);
     const r = await joinLobby(code);
     setBusy(false);
@@ -51,230 +47,100 @@ export function Home({ prefilledCode }: Props) {
   }
 
   return (
-    <div className="relative z-10 min-h-screen">
-      <header className="flex items-center justify-between px-6 pt-6 md:px-10">
-        <div className="overline text-paper/55">
-          ✚ TRIBUNAL DU MAUVAIS GOÛT ✚
-        </div>
-        <div className="overline text-paper/55 hidden sm:block">
-          AUDIENCE Nº01
-        </div>
-      </header>
+    <div className="relative h-full w-full overflow-hidden">
+      {/* The table fills the screen */}
+      <div className="absolute inset-0 grid place-items-center px-3 py-6">
+        <Table>
+          {/* Empty seats at the edge invite to play */}
+          <EmptySeats activeStage={stage} onPick={(s) => setStage(s)} />
 
-      <main className="px-6 md:px-10 pt-8 pb-32">
-        <div className="mx-auto max-w-6xl">
-          {/* Hero */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="relative"
-          >
-            <div className="overline text-paper/60 mb-3">
-              ↳ JEU DE VERDICT ENTRE POTES
-            </div>
-            <h1 className="leading-[0.78]">
-              <Brand size="xl" />
-            </h1>
-            <div className="gold-rule mt-8 max-w-3xl" />
-            <p className="mt-8 max-w-2xl font-serif-italic text-2xl md:text-3xl text-cream leading-tight">
-              Une affaire. Dix secondes. Un coupable.
-              <br />
-              <span className="text-paper/70 text-xl">
-                Pas d'inscription. Tu rejoins le jury, tu rends ton verdict,
-                tu vis avec ta conscience.
-              </span>
-            </p>
-          </motion.div>
-
+          {/* Center card */}
           <AnimatePresence mode="wait">
-            {mode === "main" && (
-              <motion.div
-                key="main"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.4 }}
-                className="mt-16 grid gap-4 md:grid-cols-2 max-w-4xl"
+            {stage === "idle" && (
+              <CenterCard
+                key="brand"
+                widthRatio={0.7}
+                variant="ghost"
+                className="!bg-transparent"
               >
-                <ActionCard
-                  badge="ACTE I"
-                  title="Ouvrir l'audience"
-                  desc="Tu choisis les charges, la durée, la solennité."
-                  cta="OUVRIR L'AUDIENCE →"
-                  variant="primary"
-                  onClick={() => setMode("create")}
-                />
-                <ActionCard
-                  badge="ACTE II"
-                  title="Rejoindre le jury"
-                  desc="On t'a passé un code de salle d'audience ?"
-                  cta="REJOINDRE LE JURY →"
-                  variant="paper"
-                  onClick={() => setMode("join")}
-                />
-              </motion.div>
+                <Brand size="lg" />
+                <div
+                  className="font-serif-i text-xl md:text-2xl mt-3"
+                  style={{ color: "var(--cream)" }}
+                >
+                  Un jeton, une accusation, un coupable.
+                </div>
+                <div
+                  className="label mt-6"
+                  style={{ color: "var(--gold-light)" }}
+                >
+                  ↓ CHOISIS UN SIÈGE ↓
+                </div>
+              </CenterCard>
             )}
 
-            {mode === "create" && (
-              <motion.section
-                key="create"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.4 }}
-                className="mt-14 max-w-2xl"
-              >
-                <DossierHeader
-                  caseTitle="Ouverture d'audience"
-                  caseNo="DOSSIER 001/A"
-                  onBack={() => setMode("main")}
+            {stage === "host" && (
+              <CenterCard key="host">
+                <PseudoStep
+                  title="Tu prends la table"
+                  hint="Tu fixes les règles."
+                  pseudo={pseudo}
+                  setPseudo={setPseudo}
+                  onSubmit={() => setStage("config")}
+                  canSubmit={canSubmitPseudo}
+                  cta="RÉGLER LA PARTIE →"
+                  onBack={() => setStage("idle")}
                 />
-
-                <div className="paper rounded-[3px] p-7 md:p-9">
-                  <Field label="Nom au registre" hint="20 caractères max">
-                    <input
-                      autoFocus
-                      type="text"
-                      maxLength={20}
-                      value={pseudo}
-                      onChange={(e) => setPseudo(e.target.value)}
-                      placeholder="Sam"
-                      className="w-full bg-transparent font-serif text-3xl outline-none placeholder:text-ink/25"
-                    />
-                  </Field>
-
-                  <Field
-                    label="Durée du délibéré"
-                    hint={`${voteDuration} sec`}
-                  >
-                    <input
-                      type="range"
-                      min={5}
-                      max={20}
-                      step={1}
-                      value={voteDuration}
-                      onChange={(e) => setVoteDuration(Number(e.target.value))}
-                      className="w-full"
-                    />
-                  </Field>
-
-                  <Field
-                    label="Nombre d'affaires"
-                    hint={`${questionCount} affaires`}
-                  >
-                    <input
-                      type="range"
-                      min={3}
-                      max={20}
-                      step={1}
-                      value={questionCount}
-                      onChange={(e) =>
-                        setQuestionCount(Number(e.target.value))
-                      }
-                      className="w-full"
-                    />
-                  </Field>
-
-                  <div className="flex items-center justify-between pt-5 border-t border-dashed border-ink/20">
-                    <div>
-                      <div className="font-serif text-xl text-ink">
-                        Scrutin anonyme
-                      </div>
-                      <div className="font-typewriter text-[11px] text-ink/55 uppercase tracking-wider mt-1">
-                        Le verdict est public, l'identité des votants est scellée
-                      </div>
-                    </div>
-                    <Toggle
-                      checked={anonymous}
-                      onChange={() => setAnonymous(!anonymous)}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    disabled={!canSubmit}
-                    onClick={handleCreate}
-                  >
-                    OUVRIR L'AUDIENCE {busy ? "..." : "→"}
-                  </Button>
-                </div>
-              </motion.section>
+              </CenterCard>
             )}
 
-            {mode === "join" && (
-              <motion.section
-                key="join"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.4 }}
-                className="mt-14 max-w-2xl"
-              >
-                <DossierHeader
-                  caseTitle="Convocation au jury"
-                  caseNo="JURY 002/B"
-                  onBack={() => setMode("main")}
+            {stage === "config" && (
+              <CenterCard key="config" widthRatio={0.7}>
+                <ConfigStep
+                  pseudo={pseudo}
+                  setPseudo={setPseudo}
+                  anonymous={anonymous}
+                  setAnonymous={setAnonymous}
+                  voteDuration={voteDuration}
+                  setVoteDuration={setVoteDuration}
+                  questionCount={questionCount}
+                  setQuestionCount={setQuestionCount}
+                  onSubmit={handleCreate}
+                  busy={busy}
+                  canSubmit={canSubmitPseudo}
+                  onBack={() => setStage("host")}
                 />
+              </CenterCard>
+            )}
 
-                <div className="paper rounded-[3px] p-7 md:p-9">
-                  <Field label="Nom au registre">
-                    <input
-                      autoFocus={!prefilledCode}
-                      type="text"
-                      maxLength={20}
-                      value={pseudo}
-                      onChange={(e) => setPseudo(e.target.value)}
-                      placeholder="Sam"
-                      className="w-full bg-transparent font-serif text-3xl outline-none placeholder:text-ink/25"
-                    />
-                  </Field>
-
-                  <Field label="Code de la salle d'audience">
-                    <input
-                      autoFocus={!!prefilledCode}
-                      type="text"
-                      maxLength={4}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      placeholder="A2BC"
-                      className="w-full bg-transparent font-stamp text-5xl uppercase tracking-[0.4em] outline-none placeholder:text-ink/25"
-                    />
-                  </Field>
-                </div>
-
-                <div className="mt-6">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    disabled={!canSubmit || code.length < 4}
-                    onClick={handleJoin}
-                  >
-                    REJOINDRE LE JURY {busy ? "..." : "→"}
-                  </Button>
-                </div>
-              </motion.section>
+            {stage === "guest" && (
+              <CenterCard key="guest">
+                <JoinStep
+                  pseudo={pseudo}
+                  setPseudo={setPseudo}
+                  code={code}
+                  setCode={setCode}
+                  onSubmit={handleJoin}
+                  busy={busy}
+                  canSubmit={canSubmitPseudo && code.length >= 4}
+                  onBack={() => setStage("idle")}
+                  prefilledCode={!!prefilledCode}
+                />
+              </CenterCard>
             )}
           </AnimatePresence>
-        </div>
-      </main>
-
-      <div className="fixed bottom-0 left-0 right-0">
-        <Marquee items={TEASE} />
+        </Table>
       </div>
 
+      {/* Error toast */}
       <AnimatePresence>
         {errorMsg && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 bg-vermillion-dark text-paper font-stamp px-5 py-3 text-xs uppercase tracking-wider"
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 plaque px-5 py-2 text-sm"
+            style={{ background: "linear-gradient(180deg, #E8554A 0%, #9B2A22 100%)", color: "var(--cream)", borderColor: "#5A1610" }}
           >
             ⚠ {errorMsg}
           </motion.div>
@@ -284,158 +150,349 @@ export function Home({ prefilledCode }: Props) {
   );
 }
 
-function DossierHeader({
-  caseTitle,
-  caseNo,
-  onBack,
+/** Two empty chip-shaped seats around the table inviting to pick a role. */
+function EmptySeats({
+  activeStage,
+  onPick,
 }: {
-  caseTitle: string;
-  caseNo: string;
-  onBack: () => void;
+  activeStage: "idle" | "host" | "guest" | "config";
+  onPick: (s: "host" | "guest") => void;
 }) {
+  if (activeStage !== "idle") return null;
   return (
-    <div className="mb-6 flex items-baseline justify-between">
-      <div>
-        <div className="overline text-paper/55 mb-1">{caseNo}</div>
-        <h2 className="font-serif-italic text-5xl text-paper">{caseTitle}</h2>
-      </div>
-      <button
-        onClick={onBack}
-        className="overline text-paper/60 hover:text-paper"
-      >
-        ← RETOUR
-      </button>
-    </div>
+    <>
+      {/* Host seat — top-left */}
+      <SeatInvite
+        label="OUVRIR LA TABLE"
+        sub="Hôte"
+        angle="20%"
+        x="22%"
+        y="22%"
+        onClick={() => onPick("host")}
+        accent="#C8A23F"
+      />
+      {/* Guest seat — bottom-right */}
+      <SeatInvite
+        label="REJOINDRE"
+        sub="Invité·e"
+        x="78%"
+        y="78%"
+        onClick={() => onPick("guest")}
+        accent="#E8554A"
+      />
+    </>
   );
 }
 
-function ActionCard({
-  badge,
-  title,
-  desc,
-  cta,
-  variant,
+function SeatInvite({
+  label,
+  sub,
+  x,
+  y,
   onClick,
+  accent,
 }: {
-  badge: string;
-  title: string;
-  desc: string;
-  cta: string;
-  variant: "primary" | "paper";
+  label: string;
+  sub: string;
+  angle?: string;
+  x: string;
+  y: string;
   onClick: () => void;
+  accent: string;
 }) {
-  if (variant === "primary") {
-    return (
-      <motion.button
-        whileHover={{ y: -4 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onClick}
-        className="group relative overflow-hidden rounded-[3px] bg-vermillion p-7 text-left text-paper transition-colors"
-        style={{
-          boxShadow: "0 20px 50px -20px rgba(155,42,34,0.7)",
-        }}
-      >
-        <div className="flex items-start justify-between">
-          <span className="font-stamp text-xs tracking-widest text-paper/80">
-            {badge}
-          </span>
-          <span className="font-stamp text-xs text-paper/80">→</span>
-        </div>
-        <div className="mt-14">
-          <div className="font-serif-italic text-6xl leading-[0.95]">
-            {title}
-          </div>
-          <div className="mt-3 font-typewriter text-[12px] uppercase tracking-wider text-paper/75">
-            {desc}
-          </div>
-          <div className="mt-8 font-stamp text-xs tracking-widest text-paper">
-            {cta}
-          </div>
-        </div>
-      </motion.button>
-    );
-  }
-  // paper
   return (
     <motion.button
-      whileHover={{ y: -4, rotate: 0.5 }}
-      whileTap={{ scale: 0.98 }}
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.2 }}
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.96 }}
       onClick={onClick}
-      className="paper group relative overflow-hidden rounded-[3px] p-7 text-left"
-      style={{ transform: "rotate(-0.5deg)" }}
+      className="absolute z-20"
+      style={{
+        left: x,
+        top: y,
+        transform: "translate(-50%, -50%)",
+      }}
     >
-      <div className="relative z-10 flex items-start justify-between">
-        <span className="font-stamp text-xs tracking-widest text-ink/55">
-          {badge}
-        </span>
-        <span className="font-stamp text-xs text-ink/55">→</span>
-      </div>
-      <div className="relative z-10 mt-14">
-        <div className="font-serif-italic text-6xl leading-[0.95] text-ink">
-          {title}
-        </div>
-        <div className="mt-3 font-typewriter text-[12px] uppercase tracking-wider text-ink/65">
-          {desc}
-        </div>
-        <div className="mt-8 font-stamp text-xs tracking-widest text-vermillion-dark">
-          {cta}
+      <div
+        className="relative grid place-items-center"
+        style={{
+          width: "clamp(96px, 16vmin, 160px)",
+          height: "clamp(96px, 16vmin, 160px)",
+          borderRadius: "50%",
+          border: `2px dashed ${accent}80`,
+          background:
+            "radial-gradient(circle, rgba(232,221,196,0.07) 0%, transparent 70%)",
+          animation: "spot-pulse 3s ease-in-out infinite",
+        }}
+      >
+        <div className="text-center px-3">
+          <div
+            className="font-display tracking-wider"
+            style={{ color: accent, fontSize: "clamp(11px, 1.6vmin, 14px)" }}
+          >
+            {label}
+          </div>
+          <div
+            className="font-serif-i text-cream/75"
+            style={{ fontSize: "clamp(11px, 1.4vmin, 13px)", marginTop: 2 }}
+          >
+            {sub}
+          </div>
         </div>
       </div>
     </motion.button>
   );
 }
 
-function Field({
-  label,
+function PseudoStep({
+  title,
   hint,
-  children,
+  pseudo,
+  setPseudo,
+  onSubmit,
+  canSubmit,
+  cta,
+  onBack,
 }: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
+  title: string;
+  hint: string;
+  pseudo: string;
+  setPseudo: (p: string) => void;
+  onSubmit: () => void;
+  canSubmit: boolean;
+  cta: string;
+  onBack: () => void;
 }) {
   return (
-    <div className="mb-5">
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="font-typewriter text-[11px] uppercase tracking-widest text-ink/65">
-          {label}
-        </span>
-        {hint && (
-          <span className="font-typewriter text-[11px] uppercase tracking-widest text-ink/45">
-            {hint}
-          </span>
-        )}
+    <div className="text-left">
+      <div className="flex items-baseline justify-between">
+        <div className="label text-ink/55">{hint}</div>
+        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
+          ← RETOUR
+        </button>
       </div>
-      {children}
+      <div className="font-serif-i text-3xl md:text-4xl mt-1 leading-tight">
+        {title}
+      </div>
+      <input
+        autoFocus
+        type="text"
+        maxLength={20}
+        value={pseudo}
+        onChange={(e) => setPseudo(e.target.value)}
+        placeholder="Ton prénom"
+        className="w-full bg-transparent font-display text-4xl md:text-5xl outline-none placeholder:text-ink/25 mt-4 border-b border-ink/20 pb-2"
+        style={{ color: "var(--ink)" }}
+      />
+      <div className="mt-5 flex justify-end">
+        <Button variant="gold" disabled={!canSubmit} onClick={onSubmit}>
+          {cta}
+        </Button>
+      </div>
     </div>
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
+function ConfigStep({
+  pseudo,
+  setPseudo,
+  anonymous,
+  setAnonymous,
+  voteDuration,
+  setVoteDuration,
+  questionCount,
+  setQuestionCount,
+  onSubmit,
+  busy,
+  canSubmit,
+  onBack,
 }: {
-  checked: boolean;
-  onChange: () => void;
+  pseudo: string;
+  setPseudo: (p: string) => void;
+  anonymous: boolean;
+  setAnonymous: (b: boolean) => void;
+  voteDuration: number;
+  setVoteDuration: (n: number) => void;
+  questionCount: number;
+  setQuestionCount: (n: number) => void;
+  onSubmit: () => void;
+  busy: boolean;
+  canSubmit: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div className="text-left">
+      <div className="flex items-baseline justify-between">
+        <div className="label text-ink/55">Règles de la table</div>
+        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
+          ← RETOUR
+        </button>
+      </div>
+      <div className="font-serif-i text-2xl md:text-3xl mt-1 leading-tight">
+        Au nom de :
+        <input
+          type="text"
+          maxLength={20}
+          value={pseudo}
+          onChange={(e) => setPseudo(e.target.value)}
+          className="bg-transparent font-serif-b outline-none border-b border-ink/30 ml-2 w-[8ch]"
+          style={{ color: "var(--ink)" }}
+        />
+      </div>
+
+      <div className="mt-5 space-y-4">
+        <Pair label="Durée du vote" value={`${voteDuration}s`}>
+          <div className="flex gap-2">
+            {[5, 10, 15, 20].map((v) => (
+              <Pip
+                key={v}
+                active={voteDuration === v}
+                onClick={() => setVoteDuration(v)}
+                label={`${v}s`}
+              />
+            ))}
+          </div>
+        </Pair>
+        <Pair label="Manches" value={`${questionCount}`}>
+          <div className="flex gap-2">
+            {[5, 8, 12, 16].map((v) => (
+              <Pip
+                key={v}
+                active={questionCount === v}
+                onClick={() => setQuestionCount(v)}
+                label={`${v}`}
+              />
+            ))}
+          </div>
+        </Pair>
+        <Pair label="Votes" value={anonymous ? "Anonymes" : "Publics"}>
+          <Pip
+            active={anonymous}
+            onClick={() => setAnonymous(!anonymous)}
+            label="ANONYMES"
+          />
+        </Pair>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Button
+          variant="gold"
+          size="lg"
+          disabled={!canSubmit}
+          onClick={onSubmit}
+        >
+          OUVRIR LA TABLE {busy ? "..." : "→"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function JoinStep({
+  pseudo,
+  setPseudo,
+  code,
+  setCode,
+  onSubmit,
+  busy,
+  canSubmit,
+  onBack,
+  prefilledCode,
+}: {
+  pseudo: string;
+  setPseudo: (p: string) => void;
+  code: string;
+  setCode: (c: string) => void;
+  onSubmit: () => void;
+  busy: boolean;
+  canSubmit: boolean;
+  onBack: () => void;
+  prefilledCode: boolean;
+}) {
+  return (
+    <div className="text-left">
+      <div className="flex items-baseline justify-between">
+        <div className="label text-ink/55">Tu rejoins une table</div>
+        <button onClick={onBack} className="label text-ink/55 hover:text-ink">
+          ← RETOUR
+        </button>
+      </div>
+      <div className="mt-3">
+        <label className="label text-ink/55">Code de la table</label>
+        <input
+          autoFocus={!!prefilledCode}
+          type="text"
+          maxLength={4}
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="A2BC"
+          className="block w-full bg-transparent font-display text-5xl md:text-6xl outline-none placeholder:text-ink/20 tracking-[0.3em] mt-1 border-b border-ink/20 pb-2"
+          style={{ color: "var(--ruby-dark)" }}
+        />
+      </div>
+      <div className="mt-4">
+        <label className="label text-ink/55">Ton prénom</label>
+        <input
+          autoFocus={!prefilledCode}
+          type="text"
+          maxLength={20}
+          value={pseudo}
+          onChange={(e) => setPseudo(e.target.value)}
+          placeholder="Sam"
+          className="block w-full bg-transparent font-serif-b text-3xl outline-none placeholder:text-ink/25 mt-1 border-b border-ink/20 pb-2"
+          style={{ color: "var(--ink)" }}
+        />
+      </div>
+      <div className="mt-5 flex justify-end">
+        <Button variant="gold" disabled={!canSubmit} onClick={onSubmit}>
+          REJOINDRE {busy ? "..." : "→"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Pair({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div>
+        <div className="label text-ink/55">{label}</div>
+        <div className="font-serif-i text-xl">{value}</div>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function Pip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
 }) {
   return (
     <button
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      className={`relative h-7 w-12 transition-colors ${
-        checked ? "bg-vermillion" : "bg-ink/15"
+      onClick={onClick}
+      className={`font-display tracking-wider text-[11px] h-8 px-3 rounded-full border transition-all ${
+        active
+          ? "bg-wood-900 text-cream border-wood-900"
+          : "bg-transparent text-ink/70 border-ink/30 hover:border-ink"
       }`}
-      style={{ borderRadius: "2px" }}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className={`absolute top-0.5 h-6 w-5 ${
-          checked ? "left-[26px] bg-paper" : "left-0.5 bg-paper"
-        }`}
-        style={{ borderRadius: "2px" }}
-      />
+      {label}
     </button>
   );
 }

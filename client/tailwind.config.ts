@@ -5,90 +5,80 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        stamp: ['"Boldonse"', "Impact", "sans-serif"],
-        serif: ['"Cormorant Garamond"', "Georgia", "serif"],
-        typewriter: ['"Courier Prime"', "Courier", "monospace"],
+        display: ['"Anton"', "Impact", "sans-serif"],
+        serif: ['"Old Standard TT"', "Georgia", "serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
         sans: ['"Inter Tight"', "system-ui", "sans-serif"],
       },
       colors: {
-        wine: {
-          950: "#10050A",
-          900: "#1E0810",
-          800: "#2A1019",
-          700: "#3A1825",
-          600: "#4D2231",
+        wood: {
+          950: "#0E0703",
+          900: "#1A0C08",
+          800: "#2B160E",
+          700: "#3A1F15",
         },
-        paper: {
-          DEFAULT: "#F0E6D0",
-          dark: "#E5D8B8",
-          aged: "#D9CBA3",
-          light: "#F7EFD8",
-        },
-        ink: {
-          DEFAULT: "#14110D",
-          soft: "#3A322A",
-          faded: "#6A5E50",
-        },
-        vermillion: {
-          DEFAULT: "#C8392F",
-          dark: "#9B2A22",
-          light: "#E8554A",
-        },
-        marine: {
-          DEFAULT: "#1F3A82",
-          dark: "#152858",
+        felt: {
+          DEFAULT: "#4D1820",
+          dark: "#3A1018",
+          light: "#5E2128",
         },
         gold: {
-          DEFAULT: "#B89150",
-          dark: "#8A6A3A",
+          DEFAULT: "#C8A23F",
+          dark: "#8C6F22",
+          light: "#E9CB6F",
         },
-        cream: "#E8DDC4",
+        cream: {
+          DEFAULT: "#F0E5D0",
+          dim: "#D8CBB1",
+        },
+        bone: "#E8DDC4",
+        ink: "#14110D",
+        ruby: "#C8392F",
+        ruby_dark: "#7A1E18",
       },
       keyframes: {
-        "stamp-slam": {
+        "chip-glide": {
+          "0%": { transform: "translate(var(--from-x), var(--from-y)) scale(0.6)", opacity: "0" },
+          "30%": { opacity: "1" },
+          "100%": { transform: "translate(var(--to-x), var(--to-y)) scale(1)", opacity: "1" },
+        },
+        "spot-pulse": {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.08)" },
+        },
+        "plaque-slam": {
           "0%": { transform: "scale(3) rotate(-12deg)", opacity: "0" },
-          "60%": { transform: "scale(0.85) rotate(-6deg)", opacity: "1" },
-          "80%": { transform: "scale(1.05) rotate(-9deg)", opacity: "1" },
-          "100%": { transform: "scale(1) rotate(-8deg)", opacity: "1" },
+          "55%": { transform: "scale(0.9) rotate(-5deg)", opacity: "1" },
+          "75%": { transform: "scale(1.05) rotate(-8deg)" },
+          "100%": { transform: "scale(1) rotate(-6deg)", opacity: "1" },
         },
-        "paper-fall": {
-          "0%": { transform: "translateY(-100vh) rotate(-15deg)", opacity: "0" },
-          "100%": { transform: "translateY(0) rotate(-2deg)", opacity: "1" },
+        "card-flip-in": {
+          "0%": { transform: "rotateY(-180deg) scale(0.4)", opacity: "0" },
+          "100%": { transform: "rotateY(0deg) scale(1)", opacity: "1" },
         },
-        gavel: {
-          "0%, 100%": { transform: "rotate(0deg)" },
-          "20%": { transform: "rotate(-25deg)" },
-          "40%": { transform: "rotate(0deg)" },
+        "drumroll-shake": {
+          "0%, 100%": { transform: "translate(0,0)" },
+          "20%": { transform: "translate(-2px, 1px)" },
+          "40%": { transform: "translate(2px, -1px)" },
+          "60%": { transform: "translate(-1px, -2px)" },
+          "80%": { transform: "translate(1px, 2px)" },
         },
-        drumroll: {
-          "0%, 100%": { transform: "translateX(0)" },
-          "20%": { transform: "translateX(-2px)" },
-          "40%": { transform: "translateX(2px)" },
-          "60%": { transform: "translateX(-1px)" },
-          "80%": { transform: "translateX(1px)" },
-        },
-        marquee: {
-          "0%": { transform: "translateX(0)" },
-          "100%": { transform: "translateX(-50%)" },
+        "ring-spin": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
         },
         ticker: {
           "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.25" },
-        },
-        flicker: {
-          "0%, 100%": { opacity: "1" },
-          "47%, 49%": { opacity: "0.7" },
-          "50%": { opacity: "1" },
+          "50%": { opacity: "0.3" },
         },
       },
       animation: {
-        "stamp-slam": "stamp-slam 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-        "paper-fall": "paper-fall 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        gavel: "gavel 0.5s ease-in-out",
-        drumroll: "drumroll 0.1s linear infinite",
-        marquee: "marquee 40s linear infinite",
+        "spot-pulse": "spot-pulse 2s ease-in-out infinite",
+        "plaque-slam": "plaque-slam 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        "card-flip-in": "card-flip-in 0.7s cubic-bezier(0.34, 1.36, 0.64, 1) forwards",
+        "drumroll-shake": "drumroll-shake 0.12s linear infinite",
+        "ring-spin": "ring-spin 12s linear infinite",
         ticker: "ticker 1s ease-in-out infinite",
-        flicker: "flicker 4s ease-in-out infinite",
       },
     },
   },

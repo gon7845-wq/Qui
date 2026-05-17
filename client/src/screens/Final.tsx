@@ -1,225 +1,198 @@
 import { motion } from "framer-motion";
 import { useStore } from "../store";
+import { Table } from "../components/Table";
+import { Seats } from "../components/Seats";
+import { CenterCard } from "../components/CenterCard";
 import { Button } from "../components/Button";
-import { Stamp } from "../components/Stamp";
 
 export function Final() {
   const { final, lobby, selfId, startGame, leave } = useStore();
   if (!final || !lobby) return null;
 
   const isHost = lobby.hostId === selfId;
-  const podium = final.finalRanking.slice(0, 3);
-  const rest = final.finalRanking.slice(3);
-  const champion = podium[0];
+  const champion = final.finalRanking[0];
+
+  // Rebuild a player array sorted by score so seats show ranking spatially
+  const sortedPlayers = final.finalRanking
+    .map((r) => lobby.players.find((p) => p.id === r.id))
+    .filter(Boolean) as typeof lobby.players;
+
+  const scoresById: Record<string, number> = {};
+  final.finalRanking.forEach((r) => (scoresById[r.id] = r.score));
 
   return (
-    <div className="relative z-10 min-h-screen px-6 md:px-10 pt-6 pb-12">
-      <div className="mx-auto max-w-5xl">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={leave}
-            className="overline text-paper/55 hover:text-paper"
-          >
-            ← QUITTER
-          </button>
-          <div className="overline text-paper/55">
-            ✚ AUDIENCE LEVÉE ✚ SALLE Nº{lobby.code}
-          </div>
-        </div>
+    <div className="relative h-full w-full overflow-hidden">
+      <button
+        onClick={leave}
+        className="fixed top-5 left-5 z-40 label text-cream/55 hover:text-cream"
+      >
+        ← QUITTER
+      </button>
 
-        {/* Verdict final poster */}
-        <motion.div
-          initial={{ opacity: 0, y: 30, rotate: -1 }}
-          animate={{ opacity: 1, y: 0, rotate: -0.4 }}
-          transition={{ duration: 0.8 }}
-          className="paper relative mt-8 rounded-[3px] p-7 md:p-12 overflow-hidden"
-        >
-          <div className="relative z-10 text-center">
-            <div className="overline text-ink/55 mb-2">JUGEMENT DÉFINITIF</div>
-            <h1 className="font-stamp text-[14vw] md:text-[10vw] leading-[0.85] text-ink">
-              VERDICT.
-            </h1>
-            <div className="mt-4 font-serif-italic text-2xl text-ink/70">
-              Le pire de la salle a été désigné.
+      <div className="absolute inset-0 grid place-items-center px-3 py-6">
+        <Table>
+          {/* Spotlight on champion */}
+          {champion && (
+            <ChampionSpotlight
+              champId={champion.id}
+              players={sortedPlayers}
+            />
+          )}
+          <Seats
+            players={sortedPlayers}
+            selfId={selfId}
+            voteCounts={scoresById}
+            highlightId={champion?.id ?? null}
+          />
+          <CenterCard widthRatio={0.7} variant="plaque" className="!py-5">
+            <div className="label" style={{ color: "rgba(26,12,8,0.7)" }}>
+              LE PIRE DE LA SALLE
             </div>
-          </div>
-
-          {/* Corner stamps */}
-          <div className="absolute right-4 top-4 md:right-8 md:top-8">
-            <Stamp variant="verdict" rotate={-9} size="md">
-              SCELLÉ
-            </Stamp>
-          </div>
-        </motion.div>
-
-        {/* Champion big card */}
-        {champion && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.7 }}
-            className="paper relative mt-8 rounded-[3px] p-8 md:p-12 overflow-hidden"
-          >
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-              <div>
-                <div className="overline text-ink/55 mb-2">
-                  ✚ LE PIRE DE LA SALLE ✚
-                </div>
-                <div
-                  className="font-stamp leading-[0.82]"
-                  style={{
-                    fontSize: "clamp(64px, 13vw, 180px)",
-                    color: "var(--vermillion-dark)",
-                  }}
-                >
-                  {champion.pseudo}
-                </div>
-                <div className="mt-3 font-typewriter text-[11px] uppercase tracking-widest text-ink/55">
-                  Casier judiciaire alourdi de {champion.score} points
-                </div>
+            {champion ? (
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0, rotate: -3 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{
+                  duration: 0.7,
+                  ease: [0.34, 1.56, 0.64, 1],
+                  delay: 0.3,
+                }}
+                className="font-display leading-[0.88] mt-1"
+                style={{
+                  fontSize: "clamp(44px, 11vmin, 110px)",
+                  color: "var(--wood-900)",
+                }}
+              >
+                {champion.pseudo}
+              </motion.div>
+            ) : (
+              <div className="font-display text-3xl mt-2">—</div>
+            )}
+            {champion && (
+              <div
+                className="label mt-2"
+                style={{ color: "rgba(26,12,8,0.7)" }}
+              >
+                {champion.score} PTS
               </div>
-              <Stamp variant="coupable" rotate={-8} size="xl" animate delay={0.6}>
-                CONDAMNÉ·E
-              </Stamp>
+            )}
+            <div className="mt-5 flex justify-center gap-2">
+              <Button variant="ghost" size="sm" onClick={leave}>
+                QUITTER
+              </Button>
+              {isHost && (
+                <Button variant="gold" size="sm" onClick={startGame}>
+                  REJOUER →
+                </Button>
+              )}
             </div>
-          </motion.div>
-        )}
+          </CenterCard>
+        </Table>
+      </div>
 
-        {/* Podium 2-3 */}
-        {podium.length > 1 && (
-          <section className="mt-10">
-            <div className="overline text-paper/65 mb-4">
-              ✚ AUTRES SUSPECT·E·S NOTABLES ✚
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {podium.slice(1).map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 + i * 0.15 }}
-                  className="paper relative rounded-[3px] p-6"
-                >
-                  <div className="overline text-ink/55">
-                    {i + 2}ÈME PLACE
-                  </div>
-                  <div className="mt-2 font-serif-italic text-4xl text-ink truncate">
-                    {p.pseudo}
-                  </div>
-                  <div className="mt-2 font-stamp text-2xl text-vermillion-dark">
-                    {p.score} PTS
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        )}
+      {/* Recap drawer at the bottom (scrolls) */}
+      <RecapDrawer />
+    </div>
+  );
+}
 
-        {/* Rest */}
-        {rest.length > 0 && (
-          <section className="mt-10">
-            <div className="overline text-paper/65 mb-3">
-              ✚ AUTRES MEMBRES DU JURY ✚
-            </div>
-            <div className="grid gap-2">
-              {rest.map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1 + i * 0.05 }}
-                  className="flex items-center justify-between rounded-[3px] border border-paper/15 px-5 py-3"
-                  style={{ background: "rgba(240,230,208,0.04)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-typewriter text-[11px] text-paper/55">
-                      {String(i + 4).padStart(2, "0")}.
-                    </span>
-                    <span className="font-serif text-xl text-paper">
-                      {p.pseudo}
-                    </span>
-                    {p.id === selfId && (
-                      <span className="overline text-vermillion">VOUS</span>
-                    )}
-                  </div>
-                  <span className="font-stamp text-paper/85">
-                    {p.score} PTS
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        )}
+function ChampionSpotlight({
+  champId,
+  players,
+}: {
+  champId: string;
+  players: { id: string }[];
+}) {
+  // simple radial light at champion's seat (computed via Seats sizing isn't
+  // exposed; we duplicate the math here using the Seats wrapper sized to inset-0)
+  return (
+    <div className="absolute inset-0 z-[5] pointer-events-none">
+      <div
+        className="absolute spotlight"
+        style={{
+          left: "50%",
+          top: "50%",
+          width: "55%",
+          height: "55%",
+          marginLeft: "-27.5%",
+          marginTop: "-27.5%",
+          animation: "spot-pulse 3s ease-in-out infinite",
+          background:
+            "radial-gradient(circle, rgba(232,221,196,0.22) 0%, transparent 60%)",
+        }}
+      />
+    </div>
+  );
+}
 
-        {/* Recap des affaires */}
-        <section className="mt-12">
-          <div className="overline text-paper/65 mb-3">
-            ✚ RECUEIL DES {final.history.length} AFFAIRES ✚
-          </div>
-          <div className="grid gap-2">
+function RecapDrawer() {
+  const { final } = useStore();
+  if (!final) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+      <details className="group pointer-events-auto">
+        <summary
+          className="cursor-pointer list-none px-4 py-2 text-center label text-cream/80 hover:text-cream"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(14,7,3,0.95) 30%, transparent)",
+          }}
+        >
+          ↑ RECAP DES {final.history.length} MANCHES ↑
+        </summary>
+        <div
+          className="max-h-[55vh] overflow-y-auto no-scrollbar px-4 pt-2 pb-6"
+          style={{ background: "rgba(14,7,3,0.98)" }}
+        >
+          <div className="mx-auto max-w-3xl grid gap-2">
             {final.history.map((h, i) => {
               const top = h.ranked[0];
               if (!top || top.count === 0) {
                 return (
                   <div
                     key={i}
-                    className="paper relative rounded-[3px] p-4"
-                    style={{ transform: "rotate(-0.3deg)" }}
+                    className="border border-cream/15 rounded-md px-4 py-2 flex items-center justify-between gap-3"
                   >
-                    <div className="overline text-ink/55">
-                      Nº{String(i + 1).padStart(2, "0")}
+                    <div className="min-w-0">
+                      <div className="label text-cream/55">
+                        Nº{String(i + 1).padStart(2, "0")}
+                      </div>
+                      <div className="font-serif-i text-base truncate text-cream/85">
+                        {h.question}
+                      </div>
                     </div>
-                    <div className="font-serif-italic text-xl mt-1 text-ink/65">
-                      {h.question}
-                    </div>
-                    <div className="overline text-ink/40 mt-2">NON-LIEU</div>
+                    <div className="label text-cream/45 shrink-0">NON-LIEU</div>
                   </div>
                 );
               }
               return (
                 <div
                   key={i}
-                  className="paper relative rounded-[3px] p-4"
-                  style={{ transform: `rotate(${(i % 2 === 0 ? -0.4 : 0.3)}deg)` }}
+                  className="border border-cream/15 rounded-md px-4 py-2 flex items-center justify-between gap-3"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="overline text-ink/55">
-                        AFFAIRE Nº{String(i + 1).padStart(2, "0")}
-                      </div>
-                      <div className="font-serif-italic text-xl mt-1 truncate text-ink">
-                        {h.question}
-                      </div>
+                  <div className="min-w-0">
+                    <div className="label text-cream/55">
+                      Nº{String(i + 1).padStart(2, "0")}
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-stamp text-xl text-vermillion-dark">
-                        {top.pseudo}
-                      </div>
-                      <div className="font-typewriter text-[10px] uppercase tracking-widest text-ink/55">
-                        {top.count} voix
-                      </div>
+                    <div className="font-serif-i text-base truncate text-cream/85">
+                      {h.question}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-display text-gold-light text-lg">
+                      {top.pseudo}
+                    </div>
+                    <div className="label text-cream/45">
+                      {top.count} VOIX
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </section>
-
-        <div className="mt-12 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="overline text-paper/55">UNE AUTRE AUDIENCE ?</div>
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={leave}>
-              QUITTER
-            </Button>
-            {isHost && (
-              <Button variant="primary" onClick={startGame}>
-                ROUVRIR L'AUDIENCE →
-              </Button>
-            )}
-          </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

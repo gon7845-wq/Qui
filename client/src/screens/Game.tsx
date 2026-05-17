@@ -1,68 +1,70 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "../store";
-import { Timer } from "../components/Timer";
-import { Button } from "../components/Button";
-import { DossierCard, caseNumber } from "../components/DossierCard";
-import { Stamp } from "../components/Stamp";
-import type { Ranked } from "../types";
+import { Table } from "../components/Table";
+import { Seats } from "../components/Seats";
+import { CenterCard } from "../components/CenterCard";
+import { VoteTokens } from "../components/VoteTokens";
+import type { Player, Ranked } from "../types";
 
 export function Game() {
-  const { lobby, selfId, reveal, nextRound } = useStore();
+  const { lobby, reveal } = useStore();
   if (!lobby) return null;
 
-  const isHost = lobby.hostId === selfId;
   const isQuestion = lobby.state === "question" && !reveal;
   const isReveal = lobby.state === "reveal" && reveal;
 
   return (
-    <div className="relative z-10 min-h-screen px-6 md:px-10 pt-6 pb-12">
-      <div className="mx-auto max-w-5xl">
-        {/* HUD */}
-        <div className="flex items-center justify-between">
-          <div className="overline text-paper/55">
-            AFFAIRE Nº{String(lobby.currentRound).padStart(2, "0")} /{" "}
-            {String(lobby.totalRounds).padStart(2, "0")}
-          </div>
-          <div className="overline text-paper/55">SALLE Nº{lobby.code}</div>
-        </div>
+    <div className="relative h-full w-full overflow-hidden">
+      {/* Floating HUD */}
+      <div className="fixed top-5 left-5 z-40 label text-cream/55">
+        MANCHE {String(lobby.currentRound).padStart(2, "0")} /{" "}
+        {String(lobby.totalRounds).padStart(2, "0")}
+      </div>
+      <div className="fixed top-5 right-5 z-40 label text-cream/55">
+        TABLE Nº{lobby.code}
+      </div>
 
+      <div className="absolute inset-0 grid place-items-center px-3 py-6">
         <AnimatePresence mode="wait">
-          {isQuestion && <QuestionView key={`q-${lobby.currentRound}`} />}
-          {isReveal && reveal && (
-            <RevealView
-              key={`r-${lobby.currentRound}`}
-              isHost={isHost}
-              onNext={nextRound}
-            />
-          )}
+          {isQuestion && <QuestionPhase key={`q-${lobby.currentRound}`} />}
+          {isReveal && reveal && <RevealPhase key={`r-${lobby.currentRound}`} />}
         </AnimatePresence>
       </div>
     </div>
   );
 }
 
-// ─── ACT I — L'AFFAIRE ───
-function QuestionView() {
+// ─── PHASE 1 — VOTE ───
+function QuestionPhase() {
   const { lobby, selfId, vote } = useStore();
   const [selected, setSelected] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
   const currentRound = lobby?.currentRound ?? 0;
 
   useEffect(() => {
     setSelected(null);
   }, [currentRound]);
 
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(id);
+  }, []);
+
   if (!lobby || !lobby.currentQuestion || !lobby.roundEndTime) return null;
+
+  const remaining = Math.max(0, lobby.roundEndTime - now);
+  const seconds = Math.ceil(remaining / 1000);
+  const pct = Math.min(1, remaining / (lobby.settings.voteDuration * 1000));
+  const urgent = seconds <= 3;
 
   const voted = !!selected;
 
-  function handleVote(targetId: string) {
+  function handleSelect(id: string) {
     if (voted) return;
-    setSelected(targetId);
-    vote(targetId);
+    setSelected(id);
+    vote(id);
   }
-
-  const players = lobby.players;
 
   return (
     <motion.div
@@ -70,423 +72,364 @@ function QuestionView() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
+      className="w-full h-full grid place-items-center"
     >
-      {/* The accusation: typed onto parchment */}
-      <motion.div
-        initial={{ opacity: 0, y: 20, rotate: -1 }}
-        animate={{ opacity: 1, y: 0, rotate: -0.4 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="paper relative mt-8 rounded-[3px] p-8 md:p-12"
-      >
-        <div className="overline text-ink/55 mb-3">
-          ✚ L'ACCUSATION ✚
-        </div>
-        <motion.h1
-          initial={{ opacity: 0, filter: "blur(4px)" }}
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="font-serif-italic text-4xl md:text-6xl leading-[1] text-ink"
-        >
-          {lobby.currentQuestion}
-        </motion.h1>
-        <div className="mt-6 font-typewriter text-[11px] uppercase tracking-widest text-ink/55">
-          Le jury est invité à rendre son verdict
-        </div>
+      <Table>
+        {/* Timer ring around the felt */}
+        <TimerRing pct={pct} urgent={urgent} />
 
-        {/* Stamp on the paper */}
-        <div className="absolute right-4 top-4 md:right-8 md:top-8">
-          <Stamp variant="coupable" rotate={-12} size="md">
-            URGENT
-          </Stamp>
-        </div>
-      </motion.div>
-
-      {/* Timer + vote counter */}
-      <div className="mt-6 flex items-center gap-6 flex-wrap">
-        <Timer
-          endTime={lobby.roundEndTime}
-          duration={lobby.settings.voteDuration}
+        <Seats
+          players={lobby.players}
+          selfId={selfId}
+          selectedId={selected}
+          onSelect={handleSelect}
+          selectableIds={new Set(lobby.players.map((p) => p.id))}
         />
-        <div className="overline text-paper/55 ml-auto">
-          {lobby.votesCount} / {lobby.players.length} BULLETINS SCELLÉS
-        </div>
-      </div>
 
-      {/* Dossiers — choose the accused */}
-      <div className="mt-8">
-        <div className="overline text-paper/65 mb-4">
-          {voted
-            ? "BULLETIN SCELLÉ — EN ATTENTE DES AUTRES"
-            : "→ DÉSIGNE UN COUPABLE PARMI LE JURY"}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-          {players.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + i * 0.05, duration: 0.4 }}
+        <CenterCard widthRatio={0.62}>
+          <div className="label text-ink/55">L'ACCUSATION</div>
+          <motion.div
+            initial={{ opacity: 0, filter: "blur(6px)", y: 6 }}
+            animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="font-serif-i leading-[1.02] mt-1"
+            style={{
+              fontSize: "clamp(22px, 3.6vmin, 38px)",
+              color: "var(--ink)",
+            }}
+          >
+            {lobby.currentQuestion}
+          </motion.div>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <span
+              className={`font-display tabular-nums ${urgent ? "text-ruby" : "text-ink"}`}
+              style={{
+                fontSize: "clamp(28px, 5vmin, 46px)",
+                animation: urgent ? "ticker 0.4s ease-in-out infinite" : undefined,
+              }}
             >
-              <DossierCard
-                player={p}
-                index={i}
-                isSelf={p.id === selfId}
-                selected={selected === p.id}
-                disabled={voted && selected !== p.id}
-                onClick={() => handleVote(p.id)}
-              />
-            </motion.div>
-          ))}
-        </div>
-      </div>
+              {String(seconds).padStart(2, "0")}
+            </span>
+            <span className="label text-ink/55">SEC</span>
+          </div>
+          <div className="label text-ink/55 mt-3">
+            {voted ? "JETON LANCÉ — EN ATTENTE…" : "→ TAPE UN JETON"}
+          </div>
+          <div className="label text-ink/40 mt-1">
+            {lobby.votesCount} / {lobby.players.length} ONT VOTÉ
+          </div>
+        </CenterCard>
+      </Table>
     </motion.div>
   );
 }
 
-// ─── ACTS II/III — LE VERDICT ───
-function RevealView({
-  isHost,
-  onNext,
-}: {
-  isHost: boolean;
-  onNext: () => void;
-}) {
-  const { reveal, lobby, selfId } = useStore();
+function TimerRing({ pct, urgent }: { pct: number; urgent: boolean }) {
+  // SVG circle outline that shrinks as time runs out
+  const C = 2 * Math.PI * 48; // circumference for r=48 in a 100-viewbox
+  const dash = C * pct;
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="absolute inset-0 z-20 pointer-events-none"
+      preserveAspectRatio="xMidYMid meet"
+      style={{ overflow: "visible" }}
+    >
+      <circle
+        cx="50"
+        cy="50"
+        r="48"
+        fill="none"
+        stroke={urgent ? "#C8392F" : "#C8A23F"}
+        strokeWidth="0.6"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${C}`}
+        transform="rotate(-90 50 50)"
+        style={{
+          transition: "stroke-dasharray 100ms linear",
+          filter: urgent
+            ? "drop-shadow(0 0 6px rgba(200,57,47,0.6))"
+            : "drop-shadow(0 0 4px rgba(200,162,63,0.4))",
+        }}
+      />
+    </svg>
+  );
+}
+
+// ─── PHASE 2 — REVEAL (tokens fly to guilty) ───
+function RevealPhase() {
+  const { reveal, lobby, selfId, nextRound } = useStore();
   if (!reveal || !lobby) return null;
+  const isHost = lobby.hostId === selfId;
 
-  // Sort lowest to highest for dramatic flip order, but keep top at end
-  const flipOrder = useMemo<Ranked[]>(() => {
-    return [...reveal.ranked].sort((a, b) => a.count - b.count);
-  }, [reveal]);
-
-  const top = [...reveal.ranked].sort((a, b) => b.count - a.count)[0];
-  const ties = top?.count
-    ? reveal.ranked.filter((r) => r.count === top.count)
-    : [];
+  // Tally for highlighting
+  const tally: Record<string, number> = {};
+  reveal.ranked.forEach((r) => (tally[r.id] = r.count));
+  const sorted = [...reveal.ranked].sort((a, b) => b.count - a.count);
+  const top = sorted[0];
   const hasGuilty = top && top.count > 0;
+  const ties: Ranked[] = hasGuilty
+    ? sorted.filter((r) => r.count === top.count)
+    : [];
 
-  // Stage machine: gavel → flips → guilty
-  // Timings (must fit roughly within revealDuration ~9s)
-  const GAVEL_MS = 1500;
-  const FLIP_STEP_MS = 600;
-  const GUILTY_DELAY_MS = GAVEL_MS + flipOrder.length * FLIP_STEP_MS;
+  // Stage machine
+  const [stage, setStage] = useState<"deal" | "tokens" | "verdict">("deal");
+  const [tokenCount, setTokenCount] = useState(0);
 
-  const [phase, setPhase] = useState<"gavel" | "flipping" | "guilty">("gavel");
-  const [flippedUpTo, setFlippedUpTo] = useState(-1);
+  // Build the votes map. If anonymous & we don't have real per-vote data,
+  // synthesize one entry per voter pointing to its target (so tokens still fly).
+  // Server now sends votes:null when anonymous. We need positional voters list.
+  const votesMap = useMemo<Record<string, string>>(() => {
+    if (reveal.votes) return reveal.votes;
+    // Anonymous: synthesize from ranked counts using anonymous-voter IDs.
+    // We map each "guess voter" to a target so tokens still animate.
+    const out: Record<string, string> = {};
+    let idx = 0;
+    for (const r of reveal.ranked) {
+      for (let k = 0; k < r.count; k++) {
+        const voter = lobby.players[idx % lobby.players.length];
+        if (voter) out[`anon-${idx}-${r.id}`] = r.id;
+        idx++;
+      }
+    }
+    return out;
+  }, [reveal, lobby.players]);
+
+  const totalVotes = Object.keys(votesMap).length;
 
   useEffect(() => {
+    setStage("deal");
+    setTokenCount(0);
     const timers: ReturnType<typeof setTimeout>[] = [];
+
+    // After 0.9s, start dropping tokens one by one
     timers.push(
       setTimeout(() => {
-        setPhase("flipping");
-      }, GAVEL_MS)
+        setStage("tokens");
+      }, 900)
     );
-    for (let i = 0; i < flipOrder.length; i++) {
+
+    for (let i = 0; i < totalVotes; i++) {
       timers.push(
         setTimeout(() => {
-          setFlippedUpTo(i);
-        }, GAVEL_MS + i * FLIP_STEP_MS)
+          setTokenCount(i + 1);
+        }, 900 + i * 280)
       );
     }
+
+    // Then reveal verdict 0.6s after last token
     timers.push(
       setTimeout(() => {
-        setPhase("guilty");
-      }, GUILTY_DELAY_MS)
+        setStage("verdict");
+      }, 900 + totalVotes * 280 + 600)
     );
+
     return () => timers.forEach(clearTimeout);
   }, [reveal.round]);
 
-  const votersByTarget = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    if (reveal.votes) {
-      for (const [voterId, targetId] of Object.entries(reveal.votes)) {
-        if (!map[targetId]) map[targetId] = [];
-        const voter = lobby.players.find((p) => p.id === voterId);
-        if (voter) map[targetId].push(voter.pseudo);
-      }
-    }
-    return map;
-  }, [reveal, lobby.players]);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative"
+      className="w-full h-full grid place-items-center"
     >
-      {/* ACT I — Gavel slam header */}
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="mt-8 text-center"
-      >
-        <div className="overline text-paper/55 mb-2">
-          ✚ AFFAIRE Nº{String(reveal.round).padStart(2, "0")} ✚
-        </div>
-        <motion.h2
-          initial={{ scale: 2.6, opacity: 0, rotate: -3 }}
-          animate={{ scale: 1, opacity: 1, rotate: -1 }}
-          transition={{
-            duration: 0.55,
-            ease: [0.34, 1.56, 0.64, 1],
-          }}
-          className="font-stamp text-5xl md:text-8xl text-paper inline-block"
-          style={{
-            textShadow: "0 0 30px rgba(200,57,47,0.3)",
-          }}
-        >
-          LE&nbsp;JURY A&nbsp;DÉLIBÉRÉ
-        </motion.h2>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: phase === "gavel" ? 1 : 0.6 }}
-          className="mt-4 font-serif-italic text-2xl text-cream/80 max-w-2xl mx-auto"
-        >
-          « {reveal.question} »
-        </motion.div>
-      </motion.div>
+      <Table>
+        {/* Spotlight on the guilty during verdict */}
+        {stage === "verdict" && hasGuilty && (
+          <GuiltySpotlight
+            playerIds={ties.map((t) => t.id)}
+            players={lobby.players}
+          />
+        )}
 
-      {/* ACT II — Cards flip from lowest votes to highest */}
-      {(phase === "flipping" || phase === "guilty") && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="mt-10"
+        <Seats
+          players={lobby.players}
+          selfId={selfId}
+          voteCounts={stage === "verdict" ? tally : undefined}
+          highlightId={stage === "verdict" && hasGuilty ? top.id : null}
+        />
+
+        {/* Animated vote tokens flying from voters to targets */}
+        <VoteTokens
+          votes={votesMap}
+          players={lobby.players}
+          count={tokenCount}
+        />
+
+        <AnimatePresence mode="wait">
+          {stage === "deal" && (
+            <CenterCard key="deal" widthRatio={0.6} variant="card">
+              <div className="label text-ink/55">VERDICT</div>
+              <motion.div
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4 }}
+                className="font-display leading-[0.95] mt-1"
+                style={{
+                  fontSize: "clamp(28px, 5.5vmin, 56px)",
+                  color: "var(--ink)",
+                }}
+              >
+                Les jetons tombent…
+              </motion.div>
+              <div
+                className="font-serif-i mt-3"
+                style={{
+                  fontSize: "clamp(14px, 2vmin, 18px)",
+                  color: "var(--ink)",
+                }}
+              >
+                « {reveal.question} »
+              </div>
+            </CenterCard>
+          )}
+
+          {stage === "tokens" && (
+            <CenterCard
+              key="tokens"
+              widthRatio={0.5}
+              variant="card"
+              className="!py-4"
+            >
+              <div className="label text-ink/55">DÉPOUILLEMENT</div>
+              <div
+                className="font-display tabular-nums leading-none mt-1"
+                style={{ fontSize: "clamp(36px, 8vmin, 80px)" }}
+              >
+                {tokenCount} / {totalVotes}
+              </div>
+              <div className="label text-ink/55 mt-1">JETONS COMPTÉS</div>
+            </CenterCard>
+          )}
+
+          {stage === "verdict" && (
+            <CenterCard
+              key="verdict"
+              widthRatio={0.7}
+              variant="plaque"
+              className="!py-4"
+            >
+              {hasGuilty ? (
+                <>
+                  <div
+                    className="label"
+                    style={{ color: "rgba(26,12,8,0.7)" }}
+                  >
+                    {ties.length > 1 ? `${ties.length} EX-AEQUO` : "COUPABLE"}
+                  </div>
+                  <motion.div
+                    initial={{ scale: 0.6, opacity: 0, rotate: -3 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={{
+                      duration: 0.6,
+                      ease: [0.34, 1.56, 0.64, 1],
+                      delay: 0.2,
+                    }}
+                    className="font-display leading-[0.88] mt-1"
+                    style={{
+                      fontSize: "clamp(40px, 9vmin, 96px)",
+                      color: "var(--wood-900)",
+                    }}
+                  >
+                    {ties.length > 1
+                      ? ties.map((t) => t.pseudo).join(" & ")
+                      : top.pseudo}
+                  </motion.div>
+                  <div
+                    className="label mt-2"
+                    style={{ color: "rgba(26,12,8,0.7)" }}
+                  >
+                    {top.count} VOIX · +3 PTS
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="label"
+                    style={{ color: "rgba(26,12,8,0.7)" }}
+                  >
+                    NON-LIEU
+                  </div>
+                  <div
+                    className="font-display leading-tight mt-1"
+                    style={{
+                      fontSize: "clamp(32px, 7vmin, 72px)",
+                      color: "var(--wood-900)",
+                    }}
+                  >
+                    Aucun jeton lancé.
+                  </div>
+                </>
+              )}
+            </CenterCard>
+          )}
+        </AnimatePresence>
+      </Table>
+
+      {/* Floating "skip" for host */}
+      {isHost && (
+        <button
+          onClick={nextRound}
+          className="fixed bottom-5 right-5 z-40 label text-cream/55 hover:text-cream"
         >
-          <div className="overline text-paper/60 mb-4 text-center">
-            ✚ DÉPOUILLEMENT DES BULLETINS ✚
-          </div>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {flipOrder.map((r, i) => {
-              const flipped = i <= flippedUpTo;
-              const isTop = hasGuilty && r.count === top.count;
-              const isStillSecret = phase === "flipping" && isTop;
-              // We hide the guilty card during ACT II to keep mystery
-              if (isStillSecret) {
-                return (
-                  <FlipCard
-                    key={r.id}
-                    flipped={false}
-                    rank={r}
-                    voters={votersByTarget[r.id]}
-                    anonymous={reveal.anonymous}
-                    isSelf={r.id === selfId}
-                    secret
-                  />
-                );
-              }
-              return (
-                <FlipCard
-                  key={r.id}
-                  flipped={flipped}
-                  rank={r}
-                  voters={votersByTarget[r.id]}
-                  anonymous={reveal.anonymous}
-                  isSelf={r.id === selfId}
-                  isTop={isTop}
-                  reveal={phase === "guilty" && isTop}
-                />
-              );
-            })}
-          </div>
-        </motion.div>
+          PASSER →
+        </button>
       )}
-
-      {/* ACT III — The verdict — guilty announced */}
-      <AnimatePresence>
-        {phase === "guilty" && hasGuilty && (
-          <motion.div
-            key="verdict-banner"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="mt-12 text-center"
-          >
-            <div className="overline text-paper/55 mb-3">
-              {ties.length > 1 ? `${ties.length} EX-AEQUO` : "LE COUPABLE EST"}
-            </div>
-            <motion.div
-              initial={{ scale: 0.6, opacity: 0, rotate: -2 }}
-              animate={{ scale: 1, opacity: 1, rotate: -1.5 }}
-              transition={{
-                delay: 0.5,
-                duration: 0.7,
-                ease: [0.34, 1.56, 0.64, 1],
-              }}
-              className="font-stamp leading-[0.82] tracking-tight"
-              style={{
-                fontSize: "clamp(64px, 16vw, 200px)",
-                color: "var(--paper)",
-                textShadow:
-                  "0 0 60px rgba(200,57,47,0.45), 0 0 100px rgba(200,57,47,0.2)",
-              }}
-            >
-              {ties.length > 1
-                ? ties.map((t) => t.pseudo).join(" & ")
-                : top.pseudo}
-            </motion.div>
-            <motion.div
-              initial={{ scale: 2.6, opacity: 0, rotate: -10 }}
-              animate={{ scale: 1, opacity: 1, rotate: -6 }}
-              transition={{
-                delay: 0.9,
-                duration: 0.55,
-                ease: [0.34, 1.56, 0.64, 1],
-              }}
-              className="mt-2 inline-block"
-            >
-              <Stamp variant="coupable" rotate={-6} size="xl">
-                COUPABLE
-              </Stamp>
-            </motion.div>
-            <div className="mt-4 font-typewriter text-[12px] uppercase tracking-widest text-paper/55">
-              {top.count} VOIX · CASIER +3 PTS
-            </div>
-          </motion.div>
-        )}
-
-        {phase === "guilty" && !hasGuilty && (
-          <motion.div
-            key="no-verdict"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-16 text-center"
-          >
-            <Stamp variant="innocent" rotate={-3} size="xl">
-              NON-LIEU
-            </Stamp>
-            <div className="mt-4 font-serif-italic text-2xl text-paper/65">
-              Aucune charge retenue.
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Next */}
-      <div className="mt-12 flex items-center justify-between">
-        <div className="overline text-paper/55">
-          AFFAIRE SUIVANTE DANS QUELQUES SECONDES…
-        </div>
-        {isHost && (
-          <Button variant="ghost" size="sm" onClick={onNext}>
-            PASSER →
-          </Button>
-        )}
-      </div>
     </motion.div>
   );
 }
 
-function FlipCard({
-  flipped,
-  rank,
-  voters,
-  anonymous,
-  isSelf,
-  isTop,
-  secret,
-  reveal: highlightReveal,
+function GuiltySpotlight({
+  playerIds,
+  players,
 }: {
-  flipped: boolean;
-  rank: Ranked;
-  voters?: string[];
-  anonymous: boolean;
-  isSelf?: boolean;
-  isTop?: boolean;
-  secret?: boolean;
-  reveal?: boolean;
+  playerIds: string[];
+  players: Player[];
 }) {
-  const caseNo = caseNumber(rank.pseudo + rank.id);
-  const label: "INNOCENT" | "SUSPECT" | "COUPABLE" =
-    rank.count === 0 ? "INNOCENT" : isTop ? "COUPABLE" : "SUSPECT";
-  const labelVariant: "innocent" | "suspect" | "coupable" =
-    rank.count === 0 ? "innocent" : isTop ? "coupable" : "suspect";
+  // We render spotlights at each tied player's seat
+  const [size, setSize] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver((e) => {
+      const r = e[0].contentRect;
+      setSize(Math.min(r.width, r.height));
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
 
   return (
-    <div
-      className={`flip-3d aspect-[3/4] ${flipped ? "flipped" : ""}`}
-      style={{ width: "100%" }}
-    >
-      <div className="flip-3d-inner h-full w-full">
-        {/* FRONT — sealed envelope */}
-        <div
-          className="flip-3d-face h-full w-full rounded-[3px] overflow-hidden p-3 flex flex-col items-center justify-center text-center relative"
-          style={{
-            background:
-              "linear-gradient(160deg, #2A1019 0%, #1E0810 60%, #10050A 100%)",
-            border: "1px solid rgba(240,230,208,0.12)",
-            boxShadow: "0 10px 30px -10px rgba(0,0,0,0.7)",
-          }}
-        >
-          <div className="font-typewriter text-[9px] uppercase tracking-widest text-paper/40 absolute top-2 left-2">
-            Nº{caseNo}
-          </div>
-          <div className="font-typewriter text-[9px] uppercase tracking-widest text-paper/40 absolute top-2 right-2">
-            JURY
-          </div>
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="wax-seal">
-              {secret ? "?" : "✚"}
-            </div>
-          </div>
-          <div className="absolute bottom-3 left-0 right-0 font-stamp text-xs text-paper/60">
-            BULLETIN
-          </div>
-        </div>
-
-        {/* BACK — verdict revealed */}
-        <div
-          className={`flip-3d-face flip-3d-back paper h-full w-full rounded-[3px] p-3 flex flex-col items-center justify-between text-center relative ${
-            isTop ? "ring-2 ring-vermillion" : ""
-          }`}
-          style={{
-            outline: isTop ? "3px solid var(--vermillion)" : undefined,
-            outlineOffset: isTop ? "-3px" : undefined,
-          }}
-        >
-          <div className="relative z-10 w-full flex items-center justify-between font-typewriter text-[9px] uppercase tracking-widest text-ink/55">
-            <span>Nº{caseNo}</span>
-            <span>{isSelf ? "VOUS" : ""}</span>
-          </div>
-          <div className="relative z-10 flex flex-col items-center">
+    <div ref={ref} className="absolute inset-0 z-10 pointer-events-none">
+      {size > 0 &&
+        playerIds.map((id) => {
+          const idx = players.findIndex((p) => p.id === id);
+          if (idx < 0) return null;
+          const total = players.length;
+          const angle = (idx / total) * Math.PI * 2 - Math.PI / 2;
+          const r = size * 0.4;
+          const x = size / 2 + r * Math.cos(angle);
+          const y = size / 2 + r * Math.sin(angle);
+          return (
             <div
-              className="font-stamp leading-none"
+              key={id}
+              className="absolute spotlight"
               style={{
-                fontSize: "clamp(40px, 7vw, 64px)",
-                color: "var(--ink)",
+                left: x,
+                top: y,
+                width: size * 0.42,
+                height: size * 0.42,
+                marginLeft: -(size * 0.21),
+                marginTop: -(size * 0.21),
+                animation: "spot-pulse 2s ease-in-out infinite",
               }}
-            >
-              {rank.count}
-            </div>
-            <div className="font-typewriter text-[10px] uppercase tracking-widest text-ink/55 mt-1">
-              {rank.count > 1 ? "VOIX" : "VOIX"}
-            </div>
-            <div className="font-serif text-xl text-ink mt-2 truncate max-w-full">
-              {rank.pseudo}
-            </div>
-          </div>
-          <div className="relative z-10 w-full flex flex-col items-center gap-1">
-            <Stamp
-              variant={labelVariant}
-              rotate={-7}
-              size="sm"
-              animate={!!highlightReveal && isTop}
-              delay={0.1}
-            >
-              {label}
-            </Stamp>
-            {!anonymous && voters && voters.length > 0 && (
-              <div className="font-typewriter text-[9px] uppercase tracking-wider text-ink/55 line-clamp-1">
-                {voters.join(" · ")}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+            />
+          );
+        })}
     </div>
   );
 }
+
