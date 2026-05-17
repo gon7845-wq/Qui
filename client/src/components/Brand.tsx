@@ -9,21 +9,23 @@ const sizes = {
   sm: "text-3xl",
   md: "text-5xl",
   lg: "text-7xl md:text-8xl",
-  xl: "text-[18vw] md:text-[15vw] leading-[0.85]",
+  xl: "text-[28vw] md:text-[20vw] leading-[0.78]",
 };
 
 export function Brand({ size = "md", className = "" }: Props) {
   return (
-    <span className={`italic-display ${sizes[size]} ${className}`}>
-      <span className="iridescent-text">Qui</span>
+    <span
+      className={`font-stamp ${sizes[size]} ${className}`}
+      style={{ color: "var(--paper)", letterSpacing: "-0.01em" }}
+    >
+      QUI
       <motion.span
-        initial={{ opacity: 0.4 }}
+        initial={{ opacity: 0.5 }}
         animate={{ opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        className="iridescent-text"
-        aria-hidden
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        style={{ color: "var(--vermillion)" }}
       >
-        {" ?"}
+        ?
       </motion.span>
     </span>
   );

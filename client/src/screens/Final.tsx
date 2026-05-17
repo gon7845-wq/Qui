@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useStore } from "../store";
 import { Button } from "../components/Button";
-import { accentFor } from "../components/PlayerCard";
+import { Stamp } from "../components/Stamp";
 
 export function Final() {
   const { final, lobby, selfId, startGame, leave } = useStore();
@@ -10,7 +10,7 @@ export function Final() {
   const isHost = lobby.hostId === selfId;
   const podium = final.finalRanking.slice(0, 3);
   const rest = final.finalRanking.slice(3);
-  const maxScore = Math.max(1, ...final.finalRanking.map((p) => p.score));
+  const champion = podium[0];
 
   return (
     <div className="relative z-10 min-h-screen px-6 md:px-10 pt-6 pb-12">
@@ -18,147 +18,143 @@ export function Final() {
         <div className="flex items-center justify-between">
           <button
             onClick={leave}
-            className="overline text-pearl/50 hover:text-pearl"
+            className="overline text-paper/55 hover:text-paper"
           >
             ← QUITTER
           </button>
-          <div className="overline text-pearl/40">
-            FIN — SALON Nº{lobby.code}
+          <div className="overline text-paper/55">
+            ✚ AUDIENCE LEVÉE ✚ SALLE Nº{lobby.code}
           </div>
         </div>
 
+        {/* Verdict final poster */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 30, rotate: -1 }}
+          animate={{ opacity: 1, y: 0, rotate: -0.4 }}
           transition={{ duration: 0.8 }}
-          className="mt-10"
+          className="paper relative mt-8 rounded-[3px] p-7 md:p-12 overflow-hidden"
         >
-          <div className="overline text-pearl/40 mb-2">
-            ↳ RÉSULTATS DÉFINITIFS
+          <div className="relative z-10 text-center">
+            <div className="overline text-ink/55 mb-2">JUGEMENT DÉFINITIF</div>
+            <h1 className="font-stamp text-[14vw] md:text-[10vw] leading-[0.85] text-ink">
+              VERDICT.
+            </h1>
+            <div className="mt-4 font-serif-italic text-2xl text-ink/70">
+              Le pire de la salle a été désigné.
+            </div>
           </div>
-          <h1 className="italic-display iridescent-text text-[18vw] md:text-[12vw] leading-[0.85] tracking-tight">
-            Verdict.
-          </h1>
-          <div className="hr-line mt-6" />
+
+          {/* Corner stamps */}
+          <div className="absolute right-4 top-4 md:right-8 md:top-8">
+            <Stamp variant="verdict" rotate={-9} size="md">
+              SCELLÉ
+            </Stamp>
+          </div>
         </motion.div>
 
-        {/* Podium */}
-        <section className="mt-10">
-          <div className="overline text-pearl/55 mb-4">PODIUM</div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {podium.map((p, i) => {
-              const [c1, c2] = accentFor(p.pseudo);
-              const place = i + 1;
-              const isYou = p.id === selfId;
-              return (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 40, scale: 0.92 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{
-                    delay: 0.4 + i * 0.15,
-                    type: "spring",
-                    stiffness: 200,
-                    damping: 18,
-                  }}
-                  className={`relative overflow-hidden rounded-3xl p-7 glass ${i === 0 ? "iri-ring" : ""}`}
+        {/* Champion big card */}
+        {champion && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.7 }}
+            className="paper relative mt-8 rounded-[3px] p-8 md:p-12 overflow-hidden"
+          >
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+              <div>
+                <div className="overline text-ink/55 mb-2">
+                  ✚ LE PIRE DE LA SALLE ✚
+                </div>
+                <div
+                  className="font-stamp leading-[0.82]"
                   style={{
-                    boxShadow:
-                      i === 0
-                        ? `0 0 70px ${c1}40, inset 0 0 40px ${c2}15`
-                        : undefined,
+                    fontSize: "clamp(64px, 13vw, 180px)",
+                    color: "var(--vermillion-dark)",
                   }}
                 >
-                  <div className="relative flex items-baseline justify-between">
-                    <span
-                      className="italic-display text-7xl"
-                      style={{
-                        color: i === 0 ? c2 : "rgba(244,241,255,0.3)",
-                        textShadow:
-                          i === 0 ? `0 0 40px ${c1}55` : undefined,
-                      }}
-                    >
-                      {String(place).padStart(2, "0")}
-                    </span>
-                    {i === 0 && (
-                      <span className="overline iridescent-text">
-                        ★ CHAMPION
-                      </span>
-                    )}
+                  {champion.pseudo}
+                </div>
+                <div className="mt-3 font-typewriter text-[11px] uppercase tracking-widest text-ink/55">
+                  Casier judiciaire alourdi de {champion.score} points
+                </div>
+              </div>
+              <Stamp variant="coupable" rotate={-8} size="xl" animate delay={0.6}>
+                CONDAMNÉ·E
+              </Stamp>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Podium 2-3 */}
+        {podium.length > 1 && (
+          <section className="mt-10">
+            <div className="overline text-paper/65 mb-4">
+              ✚ AUTRES SUSPECT·E·S NOTABLES ✚
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {podium.slice(1).map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + i * 0.15 }}
+                  className="paper relative rounded-[3px] p-6"
+                >
+                  <div className="overline text-ink/55">
+                    {i + 2}ÈME PLACE
                   </div>
-                  <div className="relative mt-6">
-                    <div className="text-3xl font-semibold tracking-tight truncate">
-                      {p.pseudo}
-                      {isYou && (
-                        <span className="ml-2 overline iridescent-text">
-                          VOUS
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      className="italic-display text-5xl tabular-nums mt-2"
-                      style={{ color: c2 }}
-                    >
-                      {p.score}
-                      <span className="overline text-pearl/30 ml-2">PTS</span>
-                    </div>
+                  <div className="mt-2 font-serif-italic text-4xl text-ink truncate">
+                    {p.pseudo}
+                  </div>
+                  <div className="mt-2 font-stamp text-2xl text-vermillion-dark">
+                    {p.score} PTS
                   </div>
                 </motion.div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Rest of ranking */}
-        {rest.length > 0 && (
-          <section className="mt-10">
-            <div className="overline text-pearl/55 mb-3">AUTRES JOUEURS</div>
-            <div className="grid gap-2">
-              {rest.map((p, i) => {
-                const [c1, c2] = accentFor(p.pseudo);
-                const pct = (p.score / maxScore) * 100;
-                return (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1 + i * 0.05 }}
-                    className="relative overflow-hidden rounded-xl glass"
-                  >
-                    <div
-                      className="absolute inset-y-0 left-0"
-                      style={{
-                        width: `${pct}%`,
-                        background: `linear-gradient(to right, ${c1}33, transparent)`,
-                      }}
-                    />
-                    <div className="relative flex items-center justify-between p-4">
-                      <div className="flex items-center gap-3">
-                        <span className="overline text-pearl/40 w-7">
-                          {String(i + 4).padStart(2, "0")}
-                        </span>
-                        <span className="text-lg font-semibold tracking-tight">
-                          {p.pseudo}
-                        </span>
-                      </div>
-                      <span
-                        className="italic-display text-2xl tabular-nums"
-                        style={{ color: c2 }}
-                      >
-                        {p.score}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              ))}
             </div>
           </section>
         )}
 
-        {/* History recap */}
+        {/* Rest */}
+        {rest.length > 0 && (
+          <section className="mt-10">
+            <div className="overline text-paper/65 mb-3">
+              ✚ AUTRES MEMBRES DU JURY ✚
+            </div>
+            <div className="grid gap-2">
+              {rest.map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1 + i * 0.05 }}
+                  className="flex items-center justify-between rounded-[3px] border border-paper/15 px-5 py-3"
+                  style={{ background: "rgba(240,230,208,0.04)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-typewriter text-[11px] text-paper/55">
+                      {String(i + 4).padStart(2, "0")}.
+                    </span>
+                    <span className="font-serif text-xl text-paper">
+                      {p.pseudo}
+                    </span>
+                    {p.id === selfId && (
+                      <span className="overline text-vermillion">VOUS</span>
+                    )}
+                  </div>
+                  <span className="font-stamp text-paper/85">
+                    {p.score} PTS
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Recap des affaires */}
         <section className="mt-12">
-          <div className="overline text-pearl/55 mb-3">
-            RÉCAP DES {final.history.length} QUESTIONS
+          <div className="overline text-paper/65 mb-3">
+            ✚ RECUEIL DES {final.history.length} AFFAIRES ✚
           </div>
           <div className="grid gap-2">
             {final.history.map((h, i) => {
@@ -167,42 +163,40 @@ export function Final() {
                 return (
                   <div
                     key={i}
-                    className="rounded-xl glass p-4"
+                    className="paper relative rounded-[3px] p-4"
+                    style={{ transform: "rotate(-0.3deg)" }}
                   >
-                    <div className="overline text-pearl/40">
+                    <div className="overline text-ink/55">
                       Nº{String(i + 1).padStart(2, "0")}
                     </div>
-                    <div className="italic-display text-xl mt-1 text-pearl/55">
+                    <div className="font-serif-italic text-xl mt-1 text-ink/65">
                       {h.question}
                     </div>
-                    <div className="overline text-pearl/30 mt-2">PERSONNE</div>
+                    <div className="overline text-ink/40 mt-2">NON-LIEU</div>
                   </div>
                 );
               }
-              const [, c2] = accentFor(top.pseudo);
               return (
                 <div
                   key={i}
-                  className="rounded-xl glass p-4"
+                  className="paper relative rounded-[3px] p-4"
+                  style={{ transform: `rotate(${(i % 2 === 0 ? -0.4 : 0.3)}deg)` }}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                      <div className="overline text-pearl/40">
-                        Nº{String(i + 1).padStart(2, "0")}
+                      <div className="overline text-ink/55">
+                        AFFAIRE Nº{String(i + 1).padStart(2, "0")}
                       </div>
-                      <div className="italic-display text-xl mt-1 truncate">
+                      <div className="font-serif-italic text-xl mt-1 truncate text-ink">
                         {h.question}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div
-                        className="italic-display text-2xl"
-                        style={{ color: c2 }}
-                      >
+                    <div className="text-right shrink-0">
+                      <div className="font-stamp text-xl text-vermillion-dark">
                         {top.pseudo}
                       </div>
-                      <div className="overline text-pearl/40">
-                        {top.count} vote{top.count > 1 ? "s" : ""}
+                      <div className="font-typewriter text-[10px] uppercase tracking-widest text-ink/55">
+                        {top.count} voix
                       </div>
                     </div>
                   </div>
@@ -212,16 +206,15 @@ export function Final() {
           </div>
         </section>
 
-        {/* Restart */}
         <div className="mt-12 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="overline text-pearl/45">UNE AUTRE ?</div>
+          <div className="overline text-paper/55">UNE AUTRE AUDIENCE ?</div>
           <div className="flex gap-3">
-            <Button variant="glass" onClick={leave}>
+            <Button variant="ghost" onClick={leave}>
               QUITTER
             </Button>
             {isHost && (
-              <Button variant="iri" onClick={startGame}>
-                REJOUER →
+              <Button variant="primary" onClick={startGame}>
+                ROUVRIR L'AUDIENCE →
               </Button>
             )}
           </div>

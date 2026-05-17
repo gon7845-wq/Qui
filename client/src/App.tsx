@@ -19,7 +19,7 @@ export default function App() {
   }, [connect]);
 
   return (
-    <div className="starfield">
+    <div className="vignette">
       <Background />
       {view === "home" && <Home prefilledCode={initialCode} />}
       {view === "lobby" && <Lobby />}

@@ -41,7 +41,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
     settings: {
       anonymous: !!settings?.anonymous,
       voteDuration: clamp(settings?.voteDuration ?? 10, 3, 30),
-      revealDuration: 6,
+      revealDuration: 9,
       questionCount: clamp(settings?.questionCount ?? 8, 3, 20),
     },
     players: [

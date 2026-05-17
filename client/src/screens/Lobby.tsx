@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "../store";
 import { Button } from "../components/Button";
-import { PlayerCard } from "../components/PlayerCard";
+import { DossierCard } from "../components/DossierCard";
 
 export function Lobby() {
   const { lobby, selfId, leave, startGame, updateSettings } = useStore();
@@ -24,50 +24,65 @@ export function Lobby() {
   return (
     <div className="relative z-10 min-h-screen px-6 md:px-10 pt-6 pb-24">
       <div className="mx-auto max-w-5xl">
-        {/* Top bar */}
         <div className="flex items-center justify-between">
           <button
             onClick={leave}
-            className="overline text-pearl/50 hover:text-pearl"
+            className="overline text-paper/55 hover:text-paper"
           >
-            ← QUITTER
+            ← QUITTER LA SALLE
           </button>
-          <div className="overline text-pearl/40">
-            SALON Nº{lobby.code} — EN ATTENTE
+          <div className="overline text-paper/55">
+            ✚ SALLE Nº{lobby.code} ✚ EN ATTENTE
           </div>
         </div>
 
-        {/* Hero */}
-        <div className="mt-10">
-          <div className="overline text-pearl/40 mb-2">
-            ↳ INVITE TES POTES
+        {/* Convocation poster */}
+        <motion.div
+          initial={{ opacity: 0, y: 30, rotate: -1 }}
+          animate={{ opacity: 1, y: 0, rotate: -0.5 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="paper relative mt-8 rounded-[3px] p-6 md:p-10"
+        >
+          <div className="overline text-ink/55">
+            CONVOCATION — AUDIENCE PUBLIQUE
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-6 py-8">
+          <div className="mt-2 font-serif-italic text-3xl md:text-5xl text-ink leading-[1]">
+            Veuillez vous présenter en salle&nbsp;:
+          </div>
+          <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <div className="overline text-pearl/55 mb-2">CODE</div>
-              <div className="italic-display iridescent-text text-[18vw] md:text-[10vw] leading-[0.85] tracking-tight">
+              <div className="overline text-ink/55 mb-2">CODE DE LA SALLE</div>
+              <div
+                className="font-stamp leading-[0.78] tracking-tight"
+                style={{
+                  fontSize: "clamp(96px, 18vw, 240px)",
+                  color: "var(--vermillion-dark)",
+                }}
+              >
                 {lobby.code}
               </div>
             </div>
             <div className="flex flex-col items-start md:items-end gap-3">
-              <div className="overline text-pearl/55">
-                {lobby.players.length} JOUEUR
-                {lobby.players.length > 1 ? "S" : ""} / 3 MIN
+              <div className="overline text-ink/55">
+                {lobby.players.length} JURÉ
+                {lobby.players.length > 1 ? "S" : ""} / 3 MINIMUM
               </div>
-              <Button variant="glass" size="md" onClick={copyLink}>
-                {copied ? "✓ LIEN COPIÉ" : "COPIER LE LIEN"}
+              <Button variant="primary" size="md" onClick={copyLink}>
+                {copied ? "✓ LIEN COPIÉ" : "✚ COPIER LE LIEN ✚"}
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Players grid */}
-        <section className="mt-10">
-          <div className="mb-4 flex items-baseline justify-between">
-            <div className="overline text-pearl/55">JOUEURS</div>
-            <div className="overline text-pearl/30">EN DIRECT</div>
+        {/* Jury list */}
+        <section className="mt-12">
+          <div className="mb-5 flex items-baseline justify-between">
+            <div className="overline text-paper/65">
+              ✚ COMPOSITION DU JURY ✚
+            </div>
+            <div className="overline text-paper/40">EN DIRECT</div>
           </div>
-          <motion.div layout className="grid gap-3 sm:grid-cols-2">
+          <motion.div layout className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <AnimatePresence>
               {lobby.players.map((p, i) => (
                 <motion.div
@@ -78,7 +93,7 @@ export function Lobby() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <PlayerCard
+                  <DossierCard
                     player={p}
                     index={i}
                     isSelf={p.id === selfId}
@@ -91,9 +106,9 @@ export function Lobby() {
                     key={`slot-${i}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center justify-center rounded-2xl border border-dashed border-white/15 p-7 text-pearl/30"
+                    className="grid place-items-center rounded-[3px] border-2 border-dashed border-paper/20 p-12 text-paper/35"
                   >
-                    <span className="overline">EN ATTENTE…</span>
+                    <span className="overline">PLACE VACANTE</span>
                   </motion.div>
                 )
               )}
@@ -101,21 +116,23 @@ export function Lobby() {
           </motion.div>
         </section>
 
-        {/* Settings */}
-        <section className="mt-10">
-          <div className="mb-4 overline text-pearl/55">RÉGLAGES</div>
+        {/* Règlement */}
+        <section className="mt-12">
+          <div className="mb-4 overline text-paper/65">
+            ✚ RÈGLEMENT DE L'AUDIENCE ✚
+          </div>
           <div className="grid gap-3 md:grid-cols-3">
             <SettingPill
-              label="Durée vote"
+              label="Délibéré"
               value={`${lobby.settings.voteDuration}s`}
             />
             <SettingPill
-              label="Questions"
+              label="Affaires"
               value={String(lobby.settings.questionCount)}
             />
             <SettingPill
-              label="Votes"
-              value={lobby.settings.anonymous ? "Anonymes" : "Publics"}
+              label="Scrutin"
+              value={lobby.settings.anonymous ? "Anonyme" : "Public"}
             />
           </div>
           {isHost && (
@@ -125,7 +142,7 @@ export function Lobby() {
                 onClick={() =>
                   updateSettings({ anonymous: !lobby.settings.anonymous })
                 }
-                label="ANONYMES"
+                label="ANONYMAT"
               />
               {[5, 10, 15].map((v) => (
                 <SmallToggle
@@ -137,33 +154,32 @@ export function Lobby() {
               ))}
               {[5, 8, 12, 16].map((v) => (
                 <SmallToggle
-                  key={v}
+                  key={`q${v}`}
                   active={lobby.settings.questionCount === v}
                   onClick={() => updateSettings({ questionCount: v })}
-                  label={`${v} Q`}
+                  label={`${v} aff.`}
                 />
               ))}
             </div>
           )}
         </section>
 
-        {/* Start button */}
         <div className="mt-12 flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="overline text-pearl/55">
+          <div className="overline text-paper/55">
             {isHost
               ? canStart
-                ? "TOUT EST PRÊT — TU PEUX LANCER"
-                : `IL FAUT ${3 - lobby.players.length} JOUEUR(S) DE PLUS`
-              : "EN ATTENTE DU HOST"}
+                ? "L'AUDIENCE PEUT COMMENCER"
+                : `IL MANQUE ${3 - lobby.players.length} JURÉ(S)`
+              : "EN ATTENTE DU PRÉSIDENT"}
           </div>
           {isHost && (
             <Button
-              variant="iri"
+              variant="primary"
               size="lg"
               disabled={!canStart}
               onClick={startGame}
             >
-              LANCER LA PARTIE →
+              ✚ OUVRIR L'AUDIENCE ✚
             </Button>
           )}
         </div>
@@ -174,9 +190,12 @@ export function Lobby() {
 
 function SettingPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl glass p-5">
-      <div className="overline text-pearl/40">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
+    <div
+      className="rounded-[3px] border border-paper/20 px-5 py-4"
+      style={{ background: "rgba(240,230,208,0.05)" }}
+    >
+      <div className="overline text-paper/55">{label}</div>
+      <div className="mt-1 font-serif-italic text-3xl text-paper">{value}</div>
     </div>
   );
 }
@@ -193,11 +212,12 @@ function SmallToggle({
   return (
     <button
       onClick={onClick}
-      className={`overline rounded-full px-3.5 py-2 transition-all ${
+      className={`font-stamp text-[11px] tracking-widest uppercase px-3.5 py-2 transition-colors ${
         active
-          ? "iri-fill text-ink-900"
-          : "border border-white/15 text-pearl/65 hover:border-white/35 hover:text-pearl"
+          ? "bg-vermillion text-paper"
+          : "border border-paper/25 text-paper/65 hover:border-paper/50 hover:text-paper"
       }`}
+      style={{ borderRadius: "2px" }}
     >
       {label}
     </button>
