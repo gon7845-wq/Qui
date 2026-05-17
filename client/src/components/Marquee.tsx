@@ -6,15 +6,15 @@ interface Props {
 export function Marquee({ items, speed = 40 }: Props) {
   const content = items.join("  ✦  ");
   return (
-    <div className="overflow-hidden border-y border-white/10 bg-black/30 py-3 backdrop-blur">
+    <div className="relative overflow-hidden border-y border-white/[0.06] bg-black/40 py-3 backdrop-blur-md">
       <div
         className="marquee-track"
         style={{
           animation: `marquee ${speed}s linear infinite`,
         }}
       >
-        <span className="overline text-white/60 px-6">{content}</span>
-        <span className="overline text-white/60 px-6" aria-hidden>
+        <span className="overline iridescent-text px-6">{content}</span>
+        <span className="overline iridescent-text px-6" aria-hidden>
           {content}
         </span>
       </div>

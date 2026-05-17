@@ -11,12 +11,25 @@ interface Props {
   showVoted?: boolean;
 }
 
-// Deterministic accent per pseudo
-const ACCENTS = ["#DBFF00", "#FF3366", "#00E5FF", "#FF9F1C", "#A78BFA", "#34D399"];
-function accentFor(s: string) {
+// Deterministic iridescent accent gradient per pseudo
+const ACCENTS: Array<[string, string]> = [
+  ["#9ED3FF", "#DDA0FF"], // sky → lavender
+  ["#FFB8E1", "#DDA0FF"], // rose → lavender
+  ["#B8FFE1", "#9ED3FF"], // mint → sky
+  ["#FFE9B8", "#FFB8E1"], // butter → rose
+  ["#DDA0FF", "#FFB8E1"], // lavender → rose
+  ["#9ED3FF", "#B8FFE1"], // sky → mint
+];
+function accentFor(s: string): [string, string] {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return ACCENTS[h % ACCENTS.length];
+}
+
+// Single hex for monotone glow needs
+function accentSolid(s: string): string {
+  const [a] = accentFor(s);
+  return a;
 }
 
 export function PlayerCard({
@@ -28,7 +41,7 @@ export function PlayerCard({
   isSelf,
   showVoted,
 }: Props) {
-  const accent = accentFor(player.pseudo);
+  const [c1, c2] = accentFor(player.pseudo);
   const initial = player.pseudo.slice(0, 1).toUpperCase();
 
   return (
@@ -40,43 +53,43 @@ export function PlayerCard({
       whileTap={!disabled ? { scale: 0.97 } : undefined}
       animate={selected ? { scale: 1.02 } : { scale: 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 28 }}
-      className={`group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border bg-white/[0.03] p-4 text-left backdrop-blur-sm transition-colors ${
-        selected
-          ? "border-transparent"
-          : "border-white/10 hover:border-white/25"
-      } ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+      className={`group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl p-4 text-left transition-colors glass ${
+        disabled ? "opacity-55 cursor-not-allowed" : "cursor-pointer hover:bg-white/[0.07]"
+      }`}
       style={{
         boxShadow: selected
-          ? `inset 0 0 0 2px ${accent}, 0 0 40px ${accent}40`
+          ? `inset 0 0 0 1.5px ${c2}, 0 0 50px ${c1}33, 0 0 80px ${c2}22`
           : undefined,
       }}
     >
       {/* Number badge */}
       <span
-        className="overline absolute right-3 top-3 text-white/40"
+        className="overline absolute right-3 top-3 text-pearl/40"
         aria-hidden
       >
         {String(index + 1).padStart(2, "0")}
       </span>
 
-      {/* Avatar */}
+      {/* Iridescent avatar */}
       <div
         className="relative grid h-14 w-14 shrink-0 place-items-center rounded-xl"
         style={{
-          background: `linear-gradient(135deg, ${accent}33, ${accent}11)`,
-          boxShadow: `inset 0 0 0 1px ${accent}66`,
+          background: `linear-gradient(135deg, ${c1}, ${c2})`,
+          boxShadow: `0 1px 0 rgba(255,255,255,0.4) inset, 0 0 0 1px rgba(255,255,255,0.15)`,
         }}
       >
         <span
           className="italic-display text-3xl"
-          style={{ color: accent }}
+          style={{ color: "#0a0a14" }}
         >
           {initial}
         </span>
         {player.isHost && (
           <span
-            className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-ink-950 text-[9px] font-bold"
-            style={{ color: accent, boxShadow: `0 0 0 1px ${accent}` }}
+            className="absolute -bottom-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-ink-900 text-[10px] font-bold text-iris-butter"
+            style={{
+              boxShadow: `0 0 0 1px ${c2}, 0 0 12px ${c2}88`,
+            }}
             title="Host"
           >
             ★
@@ -91,12 +104,12 @@ export function PlayerCard({
             {player.pseudo}
           </span>
           {isSelf && (
-            <span className="overline text-acid">VOUS</span>
+            <span className="overline iridescent-text">VOUS</span>
           )}
         </div>
-        <div className="mt-0.5 flex items-center gap-3 text-xs text-white/40">
+        <div className="mt-0.5 flex items-center gap-3 text-xs text-pearl/45">
           {showVoted && (
-            <span className="overline" style={{ color: accent }}>
+            <span className="overline" style={{ color: c2 }}>
               ● VOTÉ
             </span>
           )}
@@ -105,8 +118,14 @@ export function PlayerCard({
           )}
         </div>
       </div>
+
+      {selected && (
+        <span className="overline absolute bottom-3 right-3" style={{ color: c2 }}>
+          ✓ TON CHOIX
+        </span>
+      )}
     </motion.button>
   );
 }
 
-export { accentFor };
+export { accentFor, accentSolid };

@@ -9,7 +9,6 @@ import { Final } from "./screens/Final";
 export default function App() {
   const { view, connect } = useStore();
 
-  // Detect /r/CODE on first load
   const initialCode = (() => {
     const m = window.location.pathname.match(/^\/r\/([A-Z0-9]{4})/i);
     return m ? m[1].toUpperCase() : null;
@@ -20,7 +19,7 @@ export default function App() {
   }, [connect]);
 
   return (
-    <div className="grain">
+    <div className="starfield">
       <Background />
       {view === "home" && <Home prefilledCode={initialCode} />}
       {view === "lobby" && <Lobby />}

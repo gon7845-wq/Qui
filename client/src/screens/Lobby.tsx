@@ -28,33 +28,33 @@ export function Lobby() {
         <div className="flex items-center justify-between">
           <button
             onClick={leave}
-            className="overline text-white/50 hover:text-white"
+            className="overline text-pearl/50 hover:text-pearl"
           >
             ← QUITTER
           </button>
-          <div className="overline text-white/40">
+          <div className="overline text-pearl/40">
             SALON Nº{lobby.code} — EN ATTENTE
           </div>
         </div>
 
-        {/* Hero block */}
+        {/* Hero */}
         <div className="mt-10">
-          <div className="overline text-white/40 mb-2">
+          <div className="overline text-pearl/40 mb-2">
             ↳ INVITE TES POTES
           </div>
           <div className="flex flex-wrap items-end justify-between gap-6 border-y border-white/10 py-8">
             <div>
-              <div className="overline text-white/50 mb-2">CODE</div>
-              <div className="italic-display text-[18vw] md:text-[10vw] leading-[0.85] text-acid tracking-tight">
+              <div className="overline text-pearl/55 mb-2">CODE</div>
+              <div className="italic-display iridescent-text text-[18vw] md:text-[10vw] leading-[0.85] tracking-tight">
                 {lobby.code}
               </div>
             </div>
             <div className="flex flex-col items-start md:items-end gap-3">
-              <div className="overline text-white/50">
+              <div className="overline text-pearl/55">
                 {lobby.players.length} JOUEUR
                 {lobby.players.length > 1 ? "S" : ""} / 3 MIN
               </div>
-              <Button variant="ghost" size="md" onClick={copyLink}>
+              <Button variant="glass" size="md" onClick={copyLink}>
                 {copied ? "✓ LIEN COPIÉ" : "COPIER LE LIEN"}
               </Button>
             </div>
@@ -64,8 +64,8 @@ export function Lobby() {
         {/* Players grid */}
         <section className="mt-10">
           <div className="mb-4 flex items-baseline justify-between">
-            <div className="overline text-white/50">JOUEURS</div>
-            <div className="overline text-white/30">EN DIRECT</div>
+            <div className="overline text-pearl/55">JOUEURS</div>
+            <div className="overline text-pearl/30">EN DIRECT</div>
           </div>
           <motion.div layout className="grid gap-3 sm:grid-cols-2">
             <AnimatePresence>
@@ -91,7 +91,7 @@ export function Lobby() {
                     key={`slot-${i}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center justify-center rounded-2xl border border-dashed border-white/15 p-7 text-white/30"
+                    className="flex items-center justify-center rounded-2xl border border-dashed border-white/15 p-7 text-pearl/30"
                   >
                     <span className="overline">EN ATTENTE…</span>
                   </motion.div>
@@ -103,7 +103,7 @@ export function Lobby() {
 
         {/* Settings */}
         <section className="mt-10">
-          <div className="mb-4 overline text-white/50">RÉGLAGES</div>
+          <div className="mb-4 overline text-pearl/55">RÉGLAGES</div>
           <div className="grid gap-3 md:grid-cols-3">
             <SettingPill
               label="Durée vote"
@@ -149,7 +149,7 @@ export function Lobby() {
 
         {/* Start button */}
         <div className="mt-12 flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="overline text-white/50">
+          <div className="overline text-pearl/55">
             {isHost
               ? canStart
                 ? "TOUT EST PRÊT — TU PEUX LANCER"
@@ -158,7 +158,7 @@ export function Lobby() {
           </div>
           {isHost && (
             <Button
-              variant="acid"
+              variant="iri"
               size="lg"
               disabled={!canStart}
               onClick={startGame}
@@ -174,8 +174,8 @@ export function Lobby() {
 
 function SettingPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-      <div className="overline text-white/40">{label}</div>
+    <div className="rounded-2xl glass p-5">
+      <div className="overline text-pearl/40">{label}</div>
       <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
     </div>
   );
@@ -193,10 +193,10 @@ function SmallToggle({
   return (
     <button
       onClick={onClick}
-      className={`overline rounded-full border px-3 py-2 transition-colors ${
+      className={`overline rounded-full px-3.5 py-2 transition-all ${
         active
-          ? "border-acid bg-acid text-ink-950"
-          : "border-white/15 text-white/60 hover:border-white/40 hover:text-white"
+          ? "iri-fill text-ink-900"
+          : "border border-white/15 text-pearl/65 hover:border-white/35 hover:text-pearl"
       }`}
     >
       {label}

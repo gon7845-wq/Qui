@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#08080a"/>
-  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+  <defs>
+    <linearGradient id="iri" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9ED3FF"/>
+      <stop offset="35%" stop-color="#DDA0FF"/>
+      <stop offset="70%" stop-color="#FFB8E1"/>
+      <stop offset="100%" stop-color="#B8FFE1"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#06060c"/>
+  <text x="50%" y="56%" text-anchor="middle" dominant-baseline="middle"
         font-family="Georgia, serif" font-style="italic" font-weight="400"
-        font-size="44" fill="#DBFF00">Q</text>
+        font-size="44" fill="url(#iri)">Q</text>
 </svg>
