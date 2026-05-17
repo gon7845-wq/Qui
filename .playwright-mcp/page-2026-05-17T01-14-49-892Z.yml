@@ -1,0 +1,15 @@
+- generic [ref=e7]:
+  - generic:
+    - generic: QUI?
+    - button "OUVRIR LA TABLE Hôte" [ref=e10] [cursor=pointer]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: OUVRIR LA TABLE
+        - generic [ref=e14]: Hôte
+    - button "REJOINDRE Invité·e" [ref=e15] [cursor=pointer]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: REJOINDRE
+        - generic [ref=e19]: Invité·e
+    - generic [ref=e21]:
+      - generic [ref=e22]: QUI?
+      - generic [ref=e23]: Un jeton, une accusation, un coupable.
+      - generic [ref=e24]: ↓ CHOISIS UN SIÈGE ↓

@@ -6,12 +6,11 @@ interface Props {
 }
 
 /**
- * The felt table. Square aspect, the felt itself is a rounded shape
- * (ellipse-leaning rectangle) framed by darker wood. Children are absolutely
- * positioned inside; (0,0) refers to the upper-left of the felt area.
+ * The felt table — flat, no nesting hell.
  *
- * We also expose the felt's exact center & a recommended chip radius
- * via CSS variables so children can compute positions reliably.
+ * One single positioned div with all the visual layers stacked via
+ * backgrounds, borders and box-shadows. Children are positioned absolutely
+ * relative to this single container.
  */
 export function Table({ children, className = "" }: Props) {
   return (
@@ -21,53 +20,52 @@ export function Table({ children, className = "" }: Props) {
         width: "min(92vw, 82vh)",
         height: "min(92vw, 82vh)",
         margin: "0 auto",
+        borderRadius: "44%",
+        // The felt surface fills the whole element
+        background:
+          "radial-gradient(ellipse at 50% 35%, #5E2128 0%, #4D1820 35%, #3A1018 70%, #2A0810 100%)",
+        // Gold ring + wood rim built with stacked shadows
+        boxShadow: [
+          "0 0 0 2px #C8A23F", // gold trim ring
+          "0 0 0 14px #2B160E", // wood outer rim
+          "0 0 0 16px #1A0C08", // wood deep edge
+          "0 30px 80px -20px rgba(0,0,0,0.85)", // table shadow
+          "inset 0 4px 14px rgba(255,200,140,0.06)", // top warm glow
+        ].join(", "),
+        overflow: "visible",
       }}
     >
-      {/* Wood rim */}
+      {/* Felt grain via SVG noise overlay */}
       <div
-        className="absolute inset-0 rounded-[44%]"
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, #4A2818 0%, #2B160E 60%, #1A0C08 100%)",
-          boxShadow:
-            "0 30px 80px -20px rgba(0,0,0,0.85), inset 0 4px 12px rgba(255,200,140,0.06)",
-          padding: "5%",
+          borderRadius: "inherit",
+          opacity: 0.28,
+          mixBlendMode: "overlay",
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.4  0 0 0 0 0.4  0 0 0 0.7 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
         }}
+      />
+      {/* Faint engraved monogram */}
+      <div
+        aria-hidden
+        className="absolute inset-0 grid place-items-center pointer-events-none"
+        style={{ opacity: 0.08 }}
       >
-        {/* Gold trim ring */}
-        <div
-          className="absolute inset-[3%] rounded-[44%]"
+        <span
+          className="font-display"
           style={{
-            background:
-              "conic-gradient(from 90deg, #8C6F22, #E9CB6F, #C8A23F, #5D4810, #E9CB6F, #8C6F22)",
-            padding: "1px",
-            boxShadow:
-              "0 0 0 1px rgba(0,0,0,0.5), 0 0 30px rgba(200,162,63,0.2)",
+            fontSize: "26vmin",
+            color: "#E8DDC4",
+            letterSpacing: "-0.04em",
+            lineHeight: 1,
           }}
         >
-          <div className="absolute inset-px rounded-[44%] bg-[var(--wood-deep)]" />
-        </div>
-        {/* Felt surface */}
-        <div className="absolute inset-[6%] rounded-[44%] felt-surface overflow-hidden">
-          {/* Center monogram engraved on felt */}
-          <div
-            aria-hidden
-            className="absolute inset-0 grid place-items-center pointer-events-none"
-            style={{ opacity: 0.07 }}
-          >
-            <span
-              className="font-display text-[26vmin]"
-              style={{
-                color: "#E8DDC4",
-                letterSpacing: "-0.04em",
-              }}
-            >
-              QUI?
-            </span>
-          </div>
-          {children}
-        </div>
+          QUI?
+        </span>
       </div>
+      {children}
     </div>
   );
 }
@@ -81,7 +79,7 @@ export function seatPosition(
   i: number,
   total: number,
   feltSize: number,
-  radiusRatio = 0.36
+  radiusRatio = 0.4
 ) {
   const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
   const r = feltSize * radiusRatio;
