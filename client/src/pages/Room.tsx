@@ -11,6 +11,7 @@ import { VoteScreen } from "../game/Vote";
 import { RevealScreen } from "../game/Reveal";
 import { ScoreScreen } from "../game/Score";
 import { EndScreen } from "../game/End";
+import { useAudio } from "../lib/useAudio";
 
 type JoinStatus = "idle" | "joining" | "ready" | "needs-pseudo";
 
@@ -27,6 +28,8 @@ export function Room() {
   const [status, setStatus] = useState<JoinStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [pseudoDraft, setPseudoDraft] = useState(lastPseudo());
+
+  useAudio(roomState, playerId);
 
   useEffect(() => {
     const s = getSocket();
