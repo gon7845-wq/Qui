@@ -9,7 +9,6 @@ import { Lobby } from "../game/Lobby";
 import { QuestionScreen } from "../game/Question";
 import { VoteScreen } from "../game/Vote";
 import { RevealScreen } from "../game/Reveal";
-import { ScoreScreen } from "../game/Score";
 import { EndScreen } from "../game/End";
 import { useAudio } from "../lib/useAudio";
 
@@ -174,7 +173,6 @@ function PhaseRouter({
           <VoteScreen state={state} playerId={playerId} />
         )}
         {state.phase.startsWith("round:reveal:") && <RevealScreen state={state} />}
-        {state.phase === "round:score" && <ScoreScreen state={state} />}
         {state.phase === "end" && (
           <EndScreen state={state} playerId={playerId} onLeave={onLeave} />
         )}

@@ -7,6 +7,7 @@ import {
   ROUNDS_DEFAULT,
   VOTE_DURATION_DEFAULT,
   type ErrorPayload,
+  type HistoryEntry,
   type Phase,
   type PlayerId,
   type PlayerPublic,
@@ -29,18 +30,12 @@ interface ServerPlayer {
   socketId: string | null;
   connected: boolean;
   isHost: boolean;
-  score: number;
-  doubleVoteRemaining: number;
   missedRounds: number;
   disconnectTimer: NodeJS.Timeout | null;
 }
 
-interface CastVote {
-  targetId: PlayerId;
-  double: boolean;
-}
-
 export type EmitState = (state: RoomState) => void;
+export type EmitToSocket = (socketId: string, state: RoomState) => void;
 export type Logger = (msg: string, meta?: Record<string, unknown>) => void;
 
 export class Room {
@@ -51,12 +46,12 @@ export class Room {
   private hostId: PlayerId;
   private settings: RoomSettings;
 
-  // Round state
   private picker: QuestionPicker | null = null;
   private currentRoundIndex = 0;
   private currentQuestion: Question | null = null;
-  private votes = new Map<PlayerId, CastVote>();
+  private votes = new Map<PlayerId, PlayerId>(); // voter -> target
   private lastReveal: RevealState | null = null;
+  private history: HistoryEntry[] = [];
 
   private phaseTimer: NodeJS.Timeout | null = null;
   private destroyTimer: NodeJS.Timeout | null = null;
@@ -101,7 +96,6 @@ export class Room {
         existing.socketId = socketId;
         existing.connected = true;
         this.cancelDestroy();
-        this.broadcast();
         return { ok: true, playerId: existing.id, token: existing.token };
       }
     }
@@ -122,7 +116,6 @@ export class Room {
     const player = this.createPlayer(pseudo, false);
     player.socketId = socketId;
     this.cancelDestroy();
-    this.broadcast();
     return { ok: true, playerId: player.id, token: player.token };
   }
 
@@ -148,7 +141,6 @@ export class Room {
       if (this.phase === "lobby") {
         this.removePlayer(playerId);
       }
-      // In-game: stays as ghost player, scored as abstentions; auto-kick after MAX_MISSED_ROUNDS
     }, DISCONNECT_GRACE_MS);
   }
 
@@ -172,13 +164,11 @@ export class Room {
       this.hostId = next.id;
     }
 
-    // If we dipped below MIN_PLAYERS mid-game, abort back to lobby
     if (this.phase !== "lobby" && this.players.size < MIN_PLAYERS) {
       this.abortToLobby();
       return;
     }
 
-    // If in vote phase, recheck short-circuit
     if (this.phase === "round:vote" && this.allConnectedVoted()) {
       this.endVotePhase();
     }
@@ -263,9 +253,8 @@ export class Room {
 
     this.picker = new QuestionPicker(this.settings.categories);
     this.currentRoundIndex = 0;
+    this.history = [];
     for (const p of this.players.values()) {
-      p.score = 0;
-      p.doubleVoteRemaining = 1;
       p.missedRounds = 0;
     }
     this.startNextRound();
@@ -287,37 +276,19 @@ export class Room {
 
   public castVote(
     voterId: PlayerId,
-    targetId: PlayerId,
-    doubleVote: boolean
+    targetId: PlayerId
   ): { ok: true } | { ok: false; error: ErrorPayload } {
     if (this.phase !== "round:vote") {
       return err("WRONG_PHASE", "Ce n'est plus l'heure de voter.");
     }
-    const voter = this.players.get(voterId);
-    if (!voter) return err("NOT_IN_GAME", "Pas dans la partie.");
-    const target = this.players.get(targetId);
-    if (!target) return err("INVALID_TARGET", "Accusé introuvable.");
+    if (!this.players.has(voterId)) return err("NOT_IN_GAME", "Pas dans la partie.");
+    if (!this.players.has(targetId)) return err("INVALID_TARGET", "Accusé introuvable.");
     if (targetId === voterId && !this.settings.allowSelfVote) {
       return err("INVALID_TARGET", "L'auto-vote est interdit.");
     }
-    if (doubleVote && voter.doubleVoteRemaining < 1) {
-      return err(
-        "NO_DOUBLE_VOTE_LEFT",
-        "Tu n'as plus de double-vote pour cette partie."
-      );
-    }
 
-    // Refund previous double-vote if user is downgrading
-    const previous = this.votes.get(voterId);
-    if (previous?.double && !doubleVote) {
-      voter.doubleVoteRemaining = 1;
-    }
-    if (doubleVote && !previous?.double) {
-      voter.doubleVoteRemaining = 0;
-    }
-    this.votes.set(voterId, { targetId, double: doubleVote });
+    this.votes.set(voterId, targetId);
 
-    // Short-circuit when everyone connected has voted
     if (this.allConnectedVoted()) {
       this.endVotePhase();
     } else {
@@ -341,7 +312,7 @@ export class Room {
   private endVotePhase(): void {
     const reveal = this.computeReveal();
     this.lastReveal = reveal;
-    this.applyScoring(reveal);
+    this.recordHistory(reveal);
     this.applyMissedRoundsAndKicks();
     this.transitionTo("round:reveal:intro", PHASE_DURATION.revealIntro);
   }
@@ -377,10 +348,9 @@ export class Room {
     this.currentQuestion = null;
     this.votes.clear();
     this.lastReveal = null;
+    this.history = [];
     this.picker = null;
     for (const p of this.players.values()) {
-      p.score = 0;
-      p.doubleVoteRemaining = 1;
       p.missedRounds = 0;
     }
     this.broadcast();
@@ -416,33 +386,26 @@ export class Room {
         this.transitionTo("round:reveal:verdict", PHASE_DURATION.revealVerdict);
         break;
       case "round:reveal:verdict":
-        this.transitionTo("round:score", PHASE_DURATION.score);
-        break;
-      case "round:score":
         this.endRound();
         break;
       default:
-        // lobby / end have no timer
         break;
     }
   }
 
   // ──────────────────────────────────────────────────────────────
-  //  Scoring & reveal
+  //  Reveal & history
   // ──────────────────────────────────────────────────────────────
 
   private computeReveal(): RevealState {
     const tally = new Map<PlayerId, number>();
     const votersFor = new Map<PlayerId, PlayerId[]>();
-    const doubleUsers: PlayerId[] = [];
 
-    for (const [voterId, vote] of this.votes) {
-      const weight = vote.double ? 2 : 1;
-      tally.set(vote.targetId, (tally.get(vote.targetId) ?? 0) + weight);
-      if (vote.double) doubleUsers.push(voterId);
-      const arr = votersFor.get(vote.targetId) ?? [];
+    for (const [voterId, targetId] of this.votes) {
+      tally.set(targetId, (tally.get(targetId) ?? 0) + 1);
+      const arr = votersFor.get(targetId) ?? [];
       arr.push(voterId);
-      votersFor.set(vote.targetId, arr);
+      votersFor.set(targetId, arr);
     }
 
     let max = 0;
@@ -452,7 +415,6 @@ export class Room {
         ? [...tally.entries()].filter(([, v]) => v === max).map(([id]) => id)
         : [];
 
-    // Build the results array — include all players (even 0 votes) for box anim.
     const entries: RevealResultEntry[] = [];
     for (const p of this.players.values()) {
       const count = tally.get(p.id) ?? 0;
@@ -463,29 +425,18 @@ export class Room {
     }
     entries.sort((a, b) => b.voteCount - a.voteCount);
 
-    // Score: voters whose target is guilty get points
-    const pointsAwarded: { playerId: PlayerId; delta: number }[] = [];
-    const guiltySet = new Set(guilty);
-    for (const [voterId, vote] of this.votes) {
-      if (guiltySet.has(vote.targetId)) {
-        const delta = vote.double ? 2 : 1;
-        pointsAwarded.push({ playerId: voterId, delta });
-      }
-    }
-
-    return {
-      results: entries,
-      guilty,
-      doubleVoteUsedBy: doubleUsers,
-      pointsAwarded,
-    };
+    return { results: entries, guilty };
   }
 
-  private applyScoring(reveal: RevealState): void {
-    for (const { playerId, delta } of reveal.pointsAwarded) {
-      const p = this.players.get(playerId);
-      if (p) p.score += delta;
-    }
+  private recordHistory(reveal: RevealState): void {
+    if (!this.currentQuestion) return;
+    const top = reveal.results[0]?.voteCount ?? 0;
+    this.history.push({
+      index: this.currentRoundIndex,
+      question: this.currentQuestion,
+      guilty: reveal.guilty,
+      voteCount: top,
+    });
   }
 
   private applyMissedRoundsAndKicks(): void {
@@ -522,20 +473,11 @@ export class Room {
         : {
             index: this.currentRoundIndex,
             total: this.settings.rounds,
-            question: this.phase === "round:question" || this.phase === "round:vote"
-              ? this.currentQuestion
-              : this.currentQuestion, // keep question visible during reveal too
+            question: this.currentQuestion,
             votedPlayerIds: [...this.votes.keys()],
           };
 
-    const reveal =
-      this.phase === "round:reveal:intro" ||
-      this.phase === "round:reveal:box" ||
-      this.phase === "round:reveal:elimination" ||
-      this.phase === "round:reveal:verdict" ||
-      this.phase === "round:score"
-        ? this.lastReveal
-        : null;
+    const reveal = this.phase.startsWith("round:reveal:") ? this.lastReveal : null;
 
     return {
       code: this.code,
@@ -546,6 +488,7 @@ export class Room {
       settings: this.settings,
       round,
       reveal,
+      history: this.history,
     };
   }
 
@@ -563,8 +506,6 @@ export class Room {
       socketId: null,
       connected: false,
       isHost,
-      score: 0,
-      doubleVoteRemaining: 1,
       missedRounds: 0,
       disconnectTimer: null,
     };
@@ -612,8 +553,6 @@ function toPublic(p: ServerPlayer): PlayerPublic {
     avatar: avatarFromPseudo(p.pseudo),
     connected: p.connected,
     isHost: p.isHost,
-    score: p.score,
-    doubleVoteRemaining: p.doubleVoteRemaining,
   };
 }
 

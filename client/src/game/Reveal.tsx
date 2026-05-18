@@ -26,34 +26,18 @@ export function RevealScreen({ state }: Props) {
       <AnimatePresence mode="wait">
         {phase === "round:reveal:intro" && <IntroScene key="intro" />}
         {phase === "round:reveal:box" && (
-          <BoxScene
-            key="box"
-            state={state}
-            playerById={playerById}
-          />
+          <BoxScene key="box" state={state} playerById={playerById} />
         )}
         {phase === "round:reveal:elimination" && (
-          <EliminationScene
-            key="elim"
-            state={state}
-            playerById={playerById}
-          />
+          <EliminationScene key="elim" state={state} playerById={playerById} />
         )}
         {phase === "round:reveal:verdict" && (
-          <VerdictScene
-            key="verdict"
-            state={state}
-            playerById={playerById}
-          />
+          <VerdictScene key="verdict" state={state} playerById={playerById} />
         )}
       </AnimatePresence>
     </div>
   );
 }
-
-// ──────────────────────────────────────────────────────────────────
-//  Intro — gavel slam + screen shake + VERDICT stamp
-// ──────────────────────────────────────────────────────────────────
 
 function IntroScene() {
   const reduce = useReducedMotion();
@@ -65,7 +49,6 @@ function IntroScene() {
       transition={{ duration: 0.2 }}
       className="relative w-full h-[60vh] grid place-items-center"
     >
-      {/* Background vignette deepens */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -77,7 +60,6 @@ function IntroScene() {
         }}
       />
 
-      {/* Screen-shake wrapper — fires once on mount, suppressed if reduced motion */}
       <motion.div
         initial={{ x: 0, y: 0 }}
         animate={
@@ -99,7 +81,6 @@ function IntroScene() {
         }
         className="relative flex flex-col items-center"
       >
-        {/* Speed-lines burst right at impact */}
         {!reduce && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -111,7 +92,6 @@ function IntroScene() {
           </motion.div>
         )}
 
-        {/* Gavel arrival */}
         <motion.div
           initial={reduce ? { opacity: 0 } : { y: -260, rotate: -45, opacity: 0 }}
           animate={reduce ? { opacity: 1 } : { y: 0, rotate: 12, opacity: 1 }}
@@ -124,7 +104,6 @@ function IntroScene() {
           <Gavel size={160} />
         </motion.div>
 
-        {/* VERDICT stamp slams just after the gavel */}
         <div className="relative z-10 mt-6">
           <Stamp text="VERDICT" tone="verdict" size="lg" delay={reduce ? 0.1 : 0.7} />
         </div>
@@ -132,10 +111,6 @@ function IntroScene() {
     </motion.div>
   );
 }
-
-// ──────────────────────────────────────────────────────────────────
-//  Box — accused align at the dock
-// ──────────────────────────────────────────────────────────────────
 
 function BoxScene({
   state,
@@ -194,10 +169,6 @@ function BoxScene({
   );
 }
 
-// ──────────────────────────────────────────────────────────────────
-//  Elimination — non-guilty get "NON COUPABLE" stamps low-to-high
-// ──────────────────────────────────────────────────────────────────
-
 function EliminationScene({
   state,
   playerById,
@@ -206,7 +177,6 @@ function EliminationScene({
   playerById: Map<string, PlayerPublic>;
 }) {
   const reveal = state.reveal!;
-  // Stagger eliminations: lowest vote counts go first.
   const sortedAsc = [...reveal.results].sort((a, b) => a.voteCount - b.voteCount);
   const ranks = new Map<string, number>();
   sortedAsc.forEach((r, idx) => ranks.set(r.playerId, idx));
@@ -282,10 +252,6 @@ function EliminationScene({
   );
 }
 
-// ──────────────────────────────────────────────────────────────────
-//  Verdict — spotlight on guilty + COUPABLE stamp + voters list
-// ──────────────────────────────────────────────────────────────────
-
 function VerdictScene({
   state,
   playerById,
@@ -300,7 +266,6 @@ function VerdictScene({
 
   const isTie = guiltyPlayers.length > 1;
   const hasGuilty = guiltyPlayers.length > 0;
-  const doubleVoteIds = new Set(reveal.doubleVoteUsedBy);
   const showVoters = !state.settings.anonymousVotes;
 
   return (
@@ -311,7 +276,6 @@ function VerdictScene({
       transition={{ duration: 0.3 }}
       className="relative w-full max-w-5xl"
     >
-      {/* Overhead spotlight cone */}
       {hasGuilty && (
         <motion.div
           initial={{ opacity: 0, scaleY: 0.2 }}
@@ -355,7 +319,6 @@ function VerdictScene({
               const result = reveal.results.find((r) => r.playerId === p.id);
               const count = result?.voteCount ?? 0;
               const voters = result?.voters ?? [];
-              const usedDouble = doubleVoteIds.has(p.id);
               return (
                 <motion.div
                   key={p.id}
@@ -384,13 +347,8 @@ function VerdictScene({
                       {count}
                     </span>
                     <span className="text-court-parchment/60 text-xs uppercase tracking-widest">
-                      {count <= 1 ? "voix" : "voix"}
+                      voix
                     </span>
-                    {usedDouble && (
-                      <span className="text-court-accuse text-xs ml-1 border border-court-accuse/60 rounded px-1.5 py-0.5 tracking-widest">
-                        ×2
-                      </span>
-                    )}
                   </div>
                   {showVoters && voters.length > 0 && (
                     <motion.p

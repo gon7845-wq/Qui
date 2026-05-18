@@ -333,15 +333,19 @@ function ToggleRow({
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-court-parchment/70">{label}</span>
       <button
+        type="button"
+        role="switch"
+        aria-checked={value}
         onClick={() => !disabled && onChange(!value)}
         disabled={disabled}
-        className={`relative w-11 h-6 rounded-full transition ${
+        className={`relative shrink-0 w-12 h-7 rounded-full transition-colors ${
           value ? "bg-court-brass" : "bg-court-ink border border-court-brass/30"
         } disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-court-parchment transition-transform ${
-            value ? "translate-x-5" : "translate-x-0.5"
+          aria-hidden
+          className={`block absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-court-parchment shadow-sm transition-transform duration-200 ${
+            value ? "translate-x-5" : "translate-x-0"
           }`}
         />
       </button>

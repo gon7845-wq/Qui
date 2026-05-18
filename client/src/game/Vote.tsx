@@ -17,21 +17,14 @@ export function VoteScreen({ state, playerId }: Props) {
   const totalMs = settings.voteDurationSec * 1_000;
   const { msLeft, progress } = useCountdown(state.phaseEndsAt, totalMs);
 
-  const me = state.players.find((p) => p.id === playerId);
-  const canDouble = (me?.doubleVoteRemaining ?? 0) > 0;
-  const [doubleArmed, setDoubleArmed] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<PlayerId | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [committedTarget, setCommittedTarget] = useState<PlayerId | null>(null);
-  const [committedDouble, setCommittedDouble] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Reset selection when phase changes (server jumped to next round)
   useEffect(() => {
     setPendingTarget(null);
     setCommittedTarget(null);
-    setCommittedDouble(false);
     setError(null);
-    setDoubleArmed(false);
   }, [state.round?.index]);
 
   const candidates = useMemo(
@@ -47,16 +40,14 @@ export function VoteScreen({ state, playerId }: Props) {
 
   const handlePick = async (targetId: PlayerId) => {
     setError(null);
-    const useDouble = doubleArmed && canDouble;
     setPendingTarget(targetId);
-    const res = await castVote(targetId, useDouble);
+    const res = await castVote(targetId);
     setPendingTarget(null);
     if (!res.ok) {
       setError(res.message);
       return;
     }
     setCommittedTarget(targetId);
-    setCommittedDouble(useDouble);
   };
 
   return (
@@ -77,17 +68,9 @@ export function VoteScreen({ state, playerId }: Props) {
 
         <div className="court-card p-4 sm:p-6 mb-5">
           <CountdownBar msLeft={msLeft} totalMs={totalMs} progress={progress} />
-          <div className="mt-3 flex items-center justify-between text-xs text-court-parchment/50 uppercase tracking-wider">
-            <span>
-              {votedIds.size} / {state.players.length} ont voté
-            </span>
-            <DoubleToggle
-              canDouble={canDouble}
-              armed={doubleArmed}
-              committed={committedDouble}
-              onToggle={() => setDoubleArmed((v) => !v)}
-            />
-          </div>
+          <p className="mt-3 text-xs text-court-parchment/50 uppercase tracking-wider text-center">
+            {votedIds.size} / {state.players.length} ont voté
+          </p>
         </div>
 
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
@@ -122,7 +105,7 @@ export function VoteScreen({ state, playerId }: Props) {
                   </span>
                   {isCommitted && (
                     <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-court-brass text-court-ink text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-full">
-                      {committedDouble ? "×2 accusé" : "Accusé"}
+                      Accusé
                     </span>
                   )}
                 </button>
@@ -147,35 +130,5 @@ export function VoteScreen({ state, playerId }: Props) {
         )}
       </div>
     </div>
-  );
-}
-
-interface DoubleToggleProps {
-  canDouble: boolean;
-  armed: boolean;
-  committed: boolean;
-  onToggle: () => void;
-}
-
-function DoubleToggle({ canDouble, armed, committed, onToggle }: DoubleToggleProps) {
-  if (committed) {
-    return (
-      <span className="text-court-accuse tracking-wider">×2 verrouillé</span>
-    );
-  }
-  if (!canDouble) {
-    return <span className="text-court-parchment/30">×2 utilisé</span>;
-  }
-  return (
-    <button
-      onClick={onToggle}
-      className={`px-3 py-1 rounded-full text-xs uppercase tracking-widest border transition ${
-        armed
-          ? "bg-court-accuse/20 border-court-accuse text-court-accuse"
-          : "border-court-brass/40 text-court-parchment/70 hover:border-court-brass"
-      }`}
-    >
-      ×2 {armed ? "armé" : "armer le double"}
-    </button>
   );
 }

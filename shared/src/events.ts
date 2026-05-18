@@ -41,7 +41,7 @@ export interface ClientToServerEvents {
   ) => void;
 
   "vote:cast": (
-    payload: { targetId: PlayerId; doubleVote?: boolean },
+    payload: { targetId: PlayerId },
     ack?: (res: { ok: true } | { ok: false; error: ErrorPayload }) => void
   ) => void;
 }

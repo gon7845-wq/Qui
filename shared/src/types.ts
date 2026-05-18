@@ -11,7 +11,6 @@ export type Phase =
   | "round:reveal:box"
   | "round:reveal:elimination"
   | "round:reveal:verdict"
-  | "round:score"
   | "end";
 
 export interface PlayerPublic {
@@ -20,14 +19,12 @@ export interface PlayerPublic {
   avatar: AvatarSeed;
   connected: boolean;
   isHost: boolean;
-  score: number;
-  doubleVoteRemaining: number; // 0 or 1
 }
 
 export interface AvatarSeed {
-  hue: number;       // 0-359
-  toge: 0 | 1 | 2;   // silhouette variant
-  initials: string;  // 1-2 chars derived from pseudo
+  hue: number;
+  toge: 0 | 1 | 2;
+  initials: string;
 }
 
 export interface RoomSettings {
@@ -45,34 +42,40 @@ export interface Question {
 }
 
 export interface RoundPublicState {
-  index: number;                  // 0-based round index
+  index: number;
   total: number;
   question: Question | null;
-  votedPlayerIds: PlayerId[];     // who locked a vote (not WHAT)
+  votedPlayerIds: PlayerId[];
 }
 
 export interface RevealResultEntry {
   playerId: PlayerId;
-  voteCount: number;              // weighted (includes double-votes)
-  voters?: PlayerId[];            // present only if !anonymousVotes
+  voteCount: number;
+  voters?: PlayerId[];
 }
 
 export interface RevealState {
-  results: RevealResultEntry[];   // sorted desc by voteCount
-  guilty: PlayerId[];             // 1 or more (tie = multiple)
-  doubleVoteUsedBy: PlayerId[];   // players who burned their double-vote this round
-  pointsAwarded: { playerId: PlayerId; delta: number }[];
+  results: RevealResultEntry[];
+  guilty: PlayerId[];
+}
+
+export interface HistoryEntry {
+  index: number;
+  question: Question;
+  guilty: PlayerId[];
+  voteCount: number;
 }
 
 export interface RoomState {
   code: RoomCode;
   hostId: PlayerId;
   phase: Phase;
-  phaseEndsAt: number | null;     // server unix ms — null in lobby/end
+  phaseEndsAt: number | null;
   players: PlayerPublic[];
   settings: RoomSettings;
   round: RoundPublicState | null;
   reveal: RevealState | null;
+  history: HistoryEntry[];
 }
 
 export interface ErrorPayload {
@@ -83,7 +86,6 @@ export interface ErrorPayload {
     | "NOT_IN_GAME"
     | "WRONG_PHASE"
     | "INVALID_TARGET"
-    | "NO_DOUBLE_VOTE_LEFT"
     | "PSEUDO_TAKEN"
     | "PSEUDO_INVALID"
     | "NOT_HOST"

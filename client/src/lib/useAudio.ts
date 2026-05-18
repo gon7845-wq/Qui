@@ -27,8 +27,8 @@ export function useAudio(state: RoomState | null, playerId: string | null): void
     if (prev !== phase) {
       switch (phase) {
         case "round:question":
-          // Game just started (from lobby) — knock the gavel once
-          if (prev === "lobby" || prev === "round:score" || prev === "end") {
+          // Game just started (from lobby or end) — knock the gavel once
+          if (prev === "lobby" || prev === "end" || prev === "round:reveal:verdict") {
             audio.gavel();
           }
           audio.startTension();
@@ -43,7 +43,6 @@ export function useAudio(state: RoomState | null, playerId: string | null): void
         case "round:reveal:verdict":
           audio.verdictSting();
           break;
-        case "round:score":
         case "round:reveal:box":
         case "round:reveal:elimination":
           // silent — let the visuals breathe

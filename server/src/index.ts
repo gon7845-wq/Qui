@@ -23,15 +23,12 @@ const HAS_CLIENT_BUNDLE = existsSync(path.join(CLIENT_DIST, "index.html"));
 
 const app = express();
 
-// CORS only when running cross-origin (dev). In prod the client is
-// served from the same origin and CORS is moot.
 if (CLIENT_ORIGIN) {
   app.use(cors({ origin: CLIENT_ORIGIN }));
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, t: Date.now() }));
 
-// Serve the built client in production
 if (HAS_CLIENT_BUNDLE) {
   app.use(
     express.static(CLIENT_DIST, {
@@ -44,7 +41,6 @@ if (HAS_CLIENT_BUNDLE) {
       },
     })
   );
-  // SPA fallback — every non-/socket.io route resolves to index.html
   app.get("*", (_req, res) => {
     res.sendFile(path.join(CLIENT_DIST, "index.html"));
   });
@@ -81,9 +77,11 @@ io.on("connection", (socket) => {
     const { room } = manager.createRoom({ pseudo: clean });
     const state = room.snapshot();
     const host = state.players.find((p) => p.isHost)!;
-    room.attachSocket(host.id, socket.id);
     bindToRoom(room.code, host.id);
+    room.attachSocket(host.id, socket.id);
     const token = room.getPlayerToken(host.id)!;
+    // Send initial state explicitly to the joining socket
+    socket.emit("room:state", room.snapshot());
     ack({ ok: true, code: room.code, playerId: host.id, token });
   });
 
@@ -107,8 +105,11 @@ io.on("connection", (socket) => {
       ack(res);
       return;
     }
-    room.attachSocket(res.playerId, socket.id);
     bindToRoom(room.code, res.playerId);
+    room.attachSocket(res.playerId, socket.id);
+    // Explicit initial state to the joining socket (prevents
+    // "stuck on entering" if no other event happens for a while)
+    socket.emit("room:state", room.snapshot());
     ack({ ok: true, playerId: res.playerId, token: res.token });
   });
 
@@ -161,7 +162,7 @@ io.on("connection", (socket) => {
     ack?.(room.rematch(session.playerId));
   });
 
-  socket.on("vote:cast", ({ targetId, doubleVote }, ack) => {
+  socket.on("vote:cast", ({ targetId }, ack) => {
     if (!session.roomCode || !session.playerId) {
       ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Pas dans une partie." } });
       return;
@@ -175,7 +176,7 @@ io.on("connection", (socket) => {
       ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Cible manquante." } });
       return;
     }
-    ack?.(room.castVote(session.playerId, targetId, Boolean(doubleVote)));
+    ack?.(room.castVote(session.playerId, targetId));
   });
 
   socket.on("disconnect", () => {

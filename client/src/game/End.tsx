@@ -14,9 +14,7 @@ interface Props {
 export function EndScreen({ state, playerId, onLeave }: Props) {
   const me = state.players.find((p) => p.id === playerId);
   const isHost = me?.isHost === true;
-  const sorted = [...state.players].sort((a, b) => b.score - a.score);
-  const top3 = sorted.slice(0, 3);
-  const rest = sorted.slice(3);
+  const playerById = new Map(state.players.map((p) => [p.id, p]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +25,6 @@ export function EndScreen({ state, playerId, onLeave }: Props) {
     setBusy(false);
     if (!res.ok) setError(res.message);
   };
-
-  // Podium positions: order top3 as [2nd, 1st, 3rd] for the visual stair
-  const podium = [top3[1], top3[0], top3[2]].filter(Boolean) as typeof top3;
-  const heights = ["h-32", "h-44", "h-24"];
-  const medals = ["🥈", "🥇", "🥉"];
 
   return (
     <div className="min-h-full px-6 py-10">
@@ -53,84 +46,85 @@ export function EndScreen({ state, playerId, onLeave }: Props) {
             L'audience est levée
           </p>
           <h1 className="court-title text-4xl sm:text-5xl text-court-parchment mt-2">
-            Le verdict final
+            Les verdicts
           </h1>
         </motion.header>
 
-        {podium.length > 0 && (
-          <div className="flex items-end justify-center gap-3 sm:gap-5 mb-12">
-            {podium.map((p, i) => {
-              const realRank =
-                p === top3[0] ? 0 : p === top3[1] ? 1 : 2;
-              return (
-                <motion.div
-                  key={p.id}
-                  initial={{ y: 60, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{
-                    delay: 0.3 + i * 0.2,
-                    duration: 0.7,
-                    ease: "backOut",
-                  }}
-                  className="flex flex-col items-center gap-2"
-                >
-                  <Avatar seed={p.avatar} size={64} />
-                  <p className="font-medium text-court-parchment text-sm truncate max-w-[7rem]">
-                    {p.pseudo}
-                  </p>
-                  <p className="font-gavel text-court-brass text-2xl tabular-nums">
-                    {p.score}
-                  </p>
-                  <div
-                    className={`w-16 sm:w-24 ${heights[i]} rounded-t-lg bg-gradient-to-b from-court-brass/40 to-court-oak border border-court-brass/40 grid place-items-center text-3xl`}
-                  >
-                    {medals[realRank]}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-
-        {rest.length > 0 && (
-          <motion.ul
+        {state.history.length === 0 ? (
+          <p className="text-center text-court-parchment/60 italic">
+            Aucun verdict prononcé.
+          </p>
+        ) : (
+          <motion.ol
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
-            className="court-card p-4 divide-y divide-court-brass/10 mb-8"
+            transition={{ delay: 0.4 }}
+            className="court-card divide-y divide-court-brass/15"
           >
-            {rest.map((p, idx) => (
-              <li key={p.id} className="flex items-center gap-3 py-2">
-                <span className="font-gavel text-court-brass tabular-nums w-6 text-center">
-                  {idx + 4}
-                </span>
-                <Avatar seed={p.avatar} size={32} dim={!p.connected} />
-                <span className="flex-1 text-court-parchment truncate">
-                  {p.pseudo}
-                </span>
-                <span className="font-gavel text-court-parchment tabular-nums">
-                  {p.score}
-                </span>
-              </li>
-            ))}
-          </motion.ul>
+            {state.history.map((entry, idx) => {
+              const guiltyPlayers = entry.guilty
+                .map((id) => playerById.get(id))
+                .filter((p): p is NonNullable<typeof p> => Boolean(p));
+              const isTie = guiltyPlayers.length > 1;
+
+              return (
+                <motion.li
+                  key={entry.index}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + idx * 0.07 }}
+                  className="p-4 sm:p-5"
+                >
+                  <div className="flex items-baseline gap-3 mb-3">
+                    <span className="font-gavel text-court-brass tabular-nums">
+                      Manche {entry.index + 1}
+                    </span>
+                    <span className="text-court-parchment/40 text-xs uppercase tracking-widest">
+                      {entry.voteCount} voix
+                    </span>
+                  </div>
+                  <p className="text-court-parchment/80 text-sm sm:text-base mb-3 italic">
+                    « {entry.question.text} »
+                  </p>
+                  {guiltyPlayers.length === 0 ? (
+                    <p className="text-court-parchment/40 text-sm">
+                      Aucun verdict.
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-court-accuse text-xs uppercase tracking-widest font-bold">
+                        {isTie ? "Coupables" : "Coupable"} →
+                      </span>
+                      {guiltyPlayers.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-2 bg-court-accuse/10 border border-court-accuse/40 rounded-full pl-1 pr-3 py-1"
+                        >
+                          <Avatar seed={p.avatar} size={28} />
+                          <span className="text-court-parchment font-medium text-sm">
+                            {p.pseudo}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.li>
+              );
+            })}
+          </motion.ol>
         )}
 
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5 }}
-          className="flex flex-col sm:flex-row gap-3 items-center justify-center"
+          transition={{ delay: 1 }}
+          className="flex flex-col sm:flex-row gap-3 items-center justify-center mt-10"
         >
           <button className="court-btn-ghost" onClick={onLeave}>
             Quitter le tribunal
           </button>
           {isHost ? (
-            <button
-              className="court-btn"
-              onClick={onRematch}
-              disabled={busy}
-            >
+            <button className="court-btn" onClick={onRematch} disabled={busy}>
               {busy ? "Préparation…" : "Rejuger ce groupe"}
             </button>
           ) : (

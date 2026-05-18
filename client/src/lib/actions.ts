@@ -16,8 +16,8 @@ export function startGame(): Promise<Result> {
   return wrap((cb) => getSocket().emit("game:start", cb));
 }
 
-export function castVote(targetId: PlayerId, doubleVote: boolean): Promise<Result> {
-  return wrap((cb) => getSocket().emit("vote:cast", { targetId, doubleVote }, cb));
+export function castVote(targetId: PlayerId): Promise<Result> {
+  return wrap((cb) => getSocket().emit("vote:cast", { targetId }, cb));
 }
 
 export function requestRematch(): Promise<Result> {
