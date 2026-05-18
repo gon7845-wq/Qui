@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import type { RoomState } from "@qui/shared";
 import { Avatar } from "../components/Avatar";
 
@@ -16,48 +16,76 @@ export function ScoreScreen({ state }: Props) {
   return (
     <div className="min-h-full grid place-items-center px-6 py-10">
       <div className="max-w-2xl w-full">
-        <p className="text-xs uppercase tracking-[0.4em] text-court-parchment/50 text-center mb-2">
+        <motion.p
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-xs uppercase tracking-[0.4em] text-court-parchment/50 text-center mb-2"
+        >
           Manche {state.round!.index + 1} / {state.round!.total}
-        </p>
-        <h2 className="court-title text-3xl text-court-parchment text-center mb-8">
-          Greffier&nbsp;: cumul
-        </h2>
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="court-title text-3xl text-court-parchment text-center mb-8"
+        >
+          Greffe&nbsp;: les cumuls
+        </motion.h2>
 
         <ul className="court-card p-5 sm:p-6 divide-y divide-court-brass/10">
-          {sorted.map((p, idx) => {
-            const delta = deltaById.get(p.id) ?? 0;
-            return (
-              <motion.li
-                key={p.id}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                className="flex items-center gap-4 py-3"
-              >
-                <span className="font-gavel text-2xl text-court-brass tabular-nums w-8 text-center">
-                  {idx + 1}
-                </span>
-                <Avatar seed={p.avatar} size={44} dim={!p.connected} />
-                <span className="flex-1 text-court-parchment truncate">
-                  {p.pseudo}
-                </span>
-                {delta > 0 && (
+          <AnimatePresence>
+            {sorted.map((p, idx) => {
+              const delta = deltaById.get(p.id) ?? 0;
+              return (
+                <motion.li
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className="flex items-center gap-4 py-3 relative"
+                >
+                  <span className="font-gavel text-2xl text-court-brass tabular-nums w-8 text-center">
+                    {idx + 1}
+                  </span>
+                  <Avatar seed={p.avatar} size={44} dim={!p.connected} />
+                  <span className="flex-1 text-court-parchment truncate">
+                    {p.pseudo}
+                  </span>
+                  {delta > 0 && (
+                    <motion.span
+                      initial={{ opacity: 0, y: 14, scale: 0.5 }}
+                      animate={{
+                        opacity: [0, 1, 1, 0],
+                        y: [14, -10, -18, -30],
+                        scale: [0.5, 1.2, 1, 0.8],
+                      }}
+                      transition={{
+                        delay: 0.6 + idx * 0.06,
+                        duration: 1.6,
+                        times: [0, 0.25, 0.65, 1],
+                      }}
+                      className="absolute right-20 font-gavel text-2xl tabular-nums text-court-brass pointer-events-none"
+                      style={{
+                        textShadow: "0 0 12px rgba(201,163,90,0.7)",
+                      }}
+                    >
+                      +{delta}
+                    </motion.span>
+                  )}
                   <motion.span
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + idx * 0.08 }}
-                    className="text-sm text-court-brass font-bold"
+                    key={`score-${p.score}`}
+                    initial={delta > 0 ? { scale: 1.3, color: "#c9a35a" } : false}
+                    animate={{ scale: 1, color: "#e8dcb0" }}
+                    transition={{ delay: 0.9 + idx * 0.06, duration: 0.4 }}
+                    className="font-gavel text-2xl tabular-nums w-12 text-right"
                   >
-                    +{delta}
+                    {p.score}
                   </motion.span>
-                )}
-                <span className="font-gavel text-2xl text-court-parchment tabular-nums w-12 text-right">
-                  {p.score}
-                </span>
-              </motion.li>
-            );
-          })}
+                </motion.li>
+              );
+            })}
+          </AnimatePresence>
         </ul>
       </div>
     </div>
