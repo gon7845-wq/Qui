@@ -43,6 +43,7 @@
            font-title font-bold tracking-widest uppercase
            px-6 py-3 shadow-lg
            hover:brightness-110 active:brightness-95
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-court-parchment focus-visible:ring-offset-2 focus-visible:ring-offset-court-ink
            disabled:opacity-40 disabled:cursor-not-allowed
            transition;
   }
@@ -53,6 +54,7 @@
            font-title tracking-widest uppercase
            px-6 py-3
            hover:bg-court-brass/10
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-court-brass focus-visible:ring-offset-2 focus-visible:ring-offset-court-ink
            disabled:opacity-40 disabled:cursor-not-allowed
            transition;
   }
@@ -64,5 +66,16 @@
 
   .court-divider {
     @apply h-px bg-gradient-to-r from-transparent via-court-brass/40 to-transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

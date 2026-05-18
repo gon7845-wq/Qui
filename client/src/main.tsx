@@ -5,11 +5,13 @@ import { Home } from "./pages/Home";
 import { Room } from "./pages/Room";
 import { NotFound } from "./pages/NotFound";
 import { MuteButton } from "./components/MuteButton";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
+      <ConnectionBanner />
       <MuteButton />
       <Routes>
         <Route path="/" element={<Home />} />

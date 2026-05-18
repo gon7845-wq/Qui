@@ -141,7 +141,13 @@ export function EndScreen({ state, playerId, onLeave }: Props) {
         </motion.div>
 
         {error && (
-          <p className="text-court-accuse text-sm text-center mt-4">{error}</p>
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="text-court-accuse text-sm text-center mt-4"
+          >
+            {error}
+          </p>
         )}
       </div>
     </div>

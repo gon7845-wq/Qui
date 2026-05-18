@@ -137,7 +137,13 @@ export function Home() {
           </button>
 
           {error && (
-            <p className="text-court-accuse text-sm mt-2 text-center">{error}</p>
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="text-court-accuse text-sm mt-2 text-center"
+            >
+              {error}
+            </p>
           )}
         </div>
       </motion.div>

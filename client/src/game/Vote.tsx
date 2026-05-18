@@ -132,7 +132,13 @@ export function VoteScreen({ state, playerId }: Props) {
         </ul>
 
         {error && (
-          <p className="text-court-accuse text-sm text-center mt-4">{error}</p>
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="text-court-accuse text-sm text-center mt-4"
+          >
+            {error}
+          </p>
         )}
         {myVoteCommitted && (
           <p className="text-court-parchment/50 text-xs text-center mt-6 italic">

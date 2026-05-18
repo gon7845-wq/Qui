@@ -1,12 +1,11 @@
 import { useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PlayerPublic, RoomState } from "@qui/shared";
 import { Avatar } from "../components/Avatar";
 import { Gavel } from "../components/Gavel";
 import { Stamp } from "../components/Stamp";
 import { SpeedLines } from "../components/SpeedLines";
 import { Dock } from "../components/Dock";
-import { VoteTokens } from "../components/VoteTokens";
 
 interface Props {
   state: RoomState;
@@ -57,6 +56,7 @@ export function RevealScreen({ state }: Props) {
 // ──────────────────────────────────────────────────────────────────
 
 function IntroScene() {
+  const reduce = useReducedMotion();
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -77,37 +77,47 @@ function IntroScene() {
         }}
       />
 
-      {/* Screen-shake wrapper — fires once on mount */}
+      {/* Screen-shake wrapper — fires once on mount, suppressed if reduced motion */}
       <motion.div
         initial={{ x: 0, y: 0 }}
-        animate={{
-          x: [0, 0, -14, 14, -10, 10, -5, 5, -2, 2, 0],
-          y: [0, 0, 6, -4, 4, -2, 2, -1, 1, 0, 0],
-        }}
-        transition={{
-          duration: 0.7,
-          times: [0, 0.55, 0.6, 0.66, 0.72, 0.78, 0.84, 0.9, 0.95, 0.98, 1],
-          delay: 0.1,
-        }}
+        animate={
+          reduce
+            ? { x: 0, y: 0 }
+            : {
+                x: [0, 0, -14, 14, -10, 10, -5, 5, -2, 2, 0],
+                y: [0, 0, 6, -4, 4, -2, 2, -1, 1, 0, 0],
+              }
+        }
+        transition={
+          reduce
+            ? { duration: 0 }
+            : {
+                duration: 0.7,
+                times: [0, 0.55, 0.6, 0.66, 0.72, 0.78, 0.84, 0.9, 0.95, 0.98, 1],
+                delay: 0.1,
+              }
+        }
         className="relative flex flex-col items-center"
       >
         {/* Speed-lines burst right at impact */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.05 }}
-          className="absolute inset-0 grid place-items-center"
-        >
-          <SpeedLines color="#c9a35a" durationMs={800} />
-        </motion.div>
+        {!reduce && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.05 }}
+            className="absolute inset-0 grid place-items-center"
+          >
+            <SpeedLines color="#c9a35a" durationMs={800} />
+          </motion.div>
+        )}
 
         {/* Gavel arrival */}
         <motion.div
-          initial={{ y: -260, rotate: -45, opacity: 0 }}
-          animate={{ y: 0, rotate: 12, opacity: 1 }}
+          initial={reduce ? { opacity: 0 } : { y: -260, rotate: -45, opacity: 0 }}
+          animate={reduce ? { opacity: 1 } : { y: 0, rotate: 12, opacity: 1 }}
           transition={{
-            duration: 0.55,
-            ease: [0.5, 0, 0.75, 0],
+            duration: reduce ? 0.2 : 0.55,
+            ease: reduce ? "easeOut" : [0.5, 0, 0.75, 0],
           }}
           className="relative z-10"
         >
@@ -116,7 +126,7 @@ function IntroScene() {
 
         {/* VERDICT stamp slams just after the gavel */}
         <div className="relative z-10 mt-6">
-          <Stamp text="VERDICT" tone="verdict" size="lg" delay={0.7} />
+          <Stamp text="VERDICT" tone="verdict" size="lg" delay={reduce ? 0.1 : 0.7} />
         </div>
       </motion.div>
     </motion.div>

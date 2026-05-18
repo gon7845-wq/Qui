@@ -149,7 +149,13 @@ export function Lobby({ state, playerId, onLeave }: Props) {
             <SettingsPanel state={state} isHost={isHost} />
 
             {error && (
-              <p className="text-court-accuse text-sm text-center">{error}</p>
+              <p
+                role="alert"
+                aria-live="assertive"
+                className="text-court-accuse text-sm text-center"
+              >
+                {error}
+              </p>
             )}
 
             <button

@@ -31,6 +31,7 @@ export function Room() {
 
   useAudio(roomState, playerId);
 
+  // Listen to room state updates
   useEffect(() => {
     const s = getSocket();
     const onState = (state: RoomState) => setRoomState(state);
@@ -40,14 +41,23 @@ export function Room() {
     };
   }, [setRoomState]);
 
+  // Resume on initial mount AND on every socket reconnect.
   useEffect(() => {
-    const saved = loadSession(upperCode);
-    if (saved) {
-      setStatus("joining");
-      getSocket().emit(
+    const s = getSocket();
+    let cancelled = false;
+
+    const tryResume = () => {
+      const saved = loadSession(upperCode);
+      if (!saved) {
+        if (!cancelled) setStatus((prev) => (prev === "ready" ? prev : "needs-pseudo"));
+        return;
+      }
+      if (!cancelled) setStatus((prev) => (prev === "ready" ? prev : "joining"));
+      s.emit(
         "room:join",
         { code: upperCode, pseudo: saved.pseudo, resumeToken: saved.token },
         (res) => {
+          if (cancelled) return;
           if (!res.ok) {
             clearSession(upperCode);
             setStatus("needs-pseudo");
@@ -63,11 +73,20 @@ export function Room() {
           setStatus("ready");
         }
       );
+    };
+
+    if (s.connected) {
+      tryResume();
     } else {
-      setStatus("needs-pseudo");
+      setStatus((prev) => (prev === "ready" ? prev : "joining"));
     }
+    s.on("connect", tryResume);
+
     return () => {
-      getSocket().emit("room:leave");
+      cancelled = true;
+      s.off("connect", tryResume);
+      // Best-effort leave when navigating away in-app (reloads disconnect socket instead)
+      s.emit("room:leave");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [upperCode]);
@@ -102,7 +121,7 @@ export function Room() {
     navigate("/");
   };
 
-  if (status === "needs-pseudo" || status === "idle") {
+  if (status === "needs-pseudo") {
     return (
       <JoinGate
         code={upperCode}
@@ -115,7 +134,7 @@ export function Room() {
     );
   }
 
-  if (status === "joining" || !roomState || !playerId) {
+  if (status === "joining" || status === "idle" || !roomState || !playerId) {
     return (
       <div className="min-h-full grid place-items-center">
         <p className="text-court-parchment/60 tracking-widest uppercase animate-pulse">
@@ -137,13 +156,10 @@ function PhaseRouter({
   playerId: string;
   onLeave: () => void;
 }) {
-  // Group reveal sub-phases under a single AnimatePresence key bucket so
-  // sub-phase transitions cross-fade smoothly.
-  const phaseKey = state.phase.startsWith("round:reveal:") ? state.phase : state.phase;
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={phaseKey}
+        key={state.phase}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -203,10 +219,17 @@ function JoinGate({ code, pseudo, setPseudo, error, onSubmit, onCancel }: JoinGa
             onKeyDown={(e) => e.key === "Enter" && onSubmit()}
             placeholder="Maître Loyal"
             autoFocus
+            aria-label="Pseudo"
           />
         </label>
         {error && (
-          <p className="text-court-accuse text-sm mt-3 text-center">{error}</p>
+          <p
+            className="text-court-accuse text-sm mt-3 text-center"
+            role="alert"
+            aria-live="assertive"
+          >
+            {error}
+          </p>
         )}
         <div className="flex gap-3 mt-6">
           <button className="court-btn-ghost flex-1" onClick={onCancel}>
