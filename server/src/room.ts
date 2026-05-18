@@ -1,6 +1,8 @@
 import {
   DISCONNECT_GRACE_MS,
+  MAX_MISSED_ROUNDS,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   QUESTION_CATEGORIES,
   ROUNDS_DEFAULT,
   VOTE_DURATION_DEFAULT,
@@ -8,13 +10,17 @@ import {
   type Phase,
   type PlayerId,
   type PlayerPublic,
+  type Question,
+  type RevealResultEntry,
+  type RevealState,
   type RoomSettings,
   type RoomState,
   type RoundPublicState,
-  type RevealState,
 } from "@qui/shared";
 import { avatarFromPseudo } from "./avatar.js";
 import { nanoid } from "nanoid";
+import { PHASE_DURATION } from "./phaseDurations.js";
+import { QuestionPicker } from "./questionPicker.js";
 
 interface ServerPlayer {
   id: PlayerId;
@@ -29,6 +35,11 @@ interface ServerPlayer {
   disconnectTimer: NodeJS.Timeout | null;
 }
 
+interface CastVote {
+  targetId: PlayerId;
+  double: boolean;
+}
+
 export type EmitState = (state: RoomState) => void;
 export type Logger = (msg: string, meta?: Record<string, unknown>) => void;
 
@@ -36,10 +47,18 @@ export class Room {
   public readonly code: string;
   private players = new Map<PlayerId, ServerPlayer>();
   private phase: Phase = "lobby";
+  private phaseEndsAt: number | null = null;
   private hostId: PlayerId;
   private settings: RoomSettings;
-  private round: RoundPublicState | null = null;
-  private reveal: RevealState | null = null;
+
+  // Round state
+  private picker: QuestionPicker | null = null;
+  private currentRoundIndex = 0;
+  private currentQuestion: Question | null = null;
+  private votes = new Map<PlayerId, CastVote>();
+  private lastReveal: RevealState | null = null;
+
+  private phaseTimer: NodeJS.Timeout | null = null;
   private destroyTimer: NodeJS.Timeout | null = null;
   private destroyed = false;
 
@@ -62,7 +81,9 @@ export class Room {
     this.hostId = host.id;
   }
 
-  // --- Public mutation entry points ---
+  // ──────────────────────────────────────────────────────────────
+  //  Membership
+  // ──────────────────────────────────────────────────────────────
 
   public addPlayer(
     pseudo: string,
@@ -73,7 +94,6 @@ export class Room {
     | { ok: false; error: ErrorPayload } {
     if (this.destroyed) return err("ROOM_NOT_FOUND", "Cette partie n'existe plus.");
 
-    // Reconnection path
     if (resumeToken) {
       const existing = [...this.players.values()].find((p) => p.token === resumeToken);
       if (existing) {
@@ -86,14 +106,12 @@ export class Room {
       }
     }
 
-    // Pseudo conflict (case-insensitive)
     const lowered = pseudo.toLowerCase();
     for (const p of this.players.values()) {
       if (p.pseudo.toLowerCase() === lowered) {
         return err("PSEUDO_TAKEN", "Ce pseudo est déjà pris dans cette partie.");
       }
     }
-
     if (this.players.size >= MAX_PLAYERS) {
       return err("ROOM_FULL", "Cette partie est complète.");
     }
@@ -130,7 +148,7 @@ export class Room {
       if (this.phase === "lobby") {
         this.removePlayer(playerId);
       }
-      // In-game AFK handling will be implemented with the round loop
+      // In-game: stays as ghost player, scored as abstentions; auto-kick after MAX_MISSED_ROUNDS
     }, DISCONNECT_GRACE_MS);
   }
 
@@ -139,21 +157,55 @@ export class Room {
     if (!p) return;
     this.cancelDisconnectTimer(p);
     this.players.delete(playerId);
+    this.votes.delete(playerId);
 
     if (this.players.size === 0) {
+      this.stopPhaseTimer();
       this.scheduleDestroy();
       return;
     }
     if (playerId === this.hostId) {
-      // Transfer host to next connected player, fallback to first
       const next =
         [...this.players.values()].find((q) => q.connected) ??
         [...this.players.values()][0]!;
       next.isHost = true;
       this.hostId = next.id;
     }
+
+    // If we dipped below MIN_PLAYERS mid-game, abort back to lobby
+    if (this.phase !== "lobby" && this.players.size < MIN_PLAYERS) {
+      this.abortToLobby();
+      return;
+    }
+
+    // If in vote phase, recheck short-circuit
+    if (this.phase === "round:vote" && this.allConnectedVoted()) {
+      this.endVotePhase();
+    }
     this.broadcast();
   }
+
+  public getPlayerToken(playerId: PlayerId): string | null {
+    return this.players.get(playerId)?.token ?? null;
+  }
+
+  public isEmpty(): boolean {
+    return this.players.size === 0;
+  }
+
+  public destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    for (const p of this.players.values()) this.cancelDisconnectTimer(p);
+    this.stopPhaseTimer();
+    if (this.destroyTimer) clearTimeout(this.destroyTimer);
+    this.destroyTimer = null;
+    this.log(`room ${this.code} destroyed`);
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  Settings
+  // ──────────────────────────────────────────────────────────────
 
   public updateSettings(
     requesterId: PlayerId,
@@ -189,41 +241,317 @@ export class Room {
     return { ok: true };
   }
 
-  public getPlayerToken(playerId: PlayerId): string | null {
-    return this.players.get(playerId)?.token ?? null;
+  // ──────────────────────────────────────────────────────────────
+  //  Game lifecycle
+  // ──────────────────────────────────────────────────────────────
+
+  public startGame(
+    requesterId: PlayerId
+  ): { ok: true } | { ok: false; error: ErrorPayload } {
+    if (requesterId !== this.hostId) {
+      return err("NOT_HOST", "Seul le juge peut ouvrir l'audience.");
+    }
+    if (this.phase !== "lobby") {
+      return err("GAME_IN_PROGRESS", "L'audience est déjà ouverte.");
+    }
+    if (this.players.size < MIN_PLAYERS) {
+      return err(
+        "NOT_ENOUGH_PLAYERS",
+        `Il faut au moins ${MIN_PLAYERS} accusés au box.`
+      );
+    }
+
+    this.picker = new QuestionPicker(this.settings.categories);
+    this.currentRoundIndex = 0;
+    for (const p of this.players.values()) {
+      p.score = 0;
+      p.doubleVoteRemaining = 1;
+      p.missedRounds = 0;
+    }
+    this.startNextRound();
+    return { ok: true };
   }
 
-  public isEmpty(): boolean {
-    return this.players.size === 0;
+  public rematch(
+    requesterId: PlayerId
+  ): { ok: true } | { ok: false; error: ErrorPayload } {
+    if (requesterId !== this.hostId) {
+      return err("NOT_HOST", "Seul le juge peut relancer.");
+    }
+    if (this.phase !== "end") {
+      return err("WRONG_PHASE", "La partie n'est pas terminée.");
+    }
+    this.resetToLobby();
+    return { ok: true };
   }
 
-  public hasConnectedPlayers(): boolean {
-    for (const p of this.players.values()) if (p.connected) return true;
-    return false;
+  public castVote(
+    voterId: PlayerId,
+    targetId: PlayerId,
+    doubleVote: boolean
+  ): { ok: true } | { ok: false; error: ErrorPayload } {
+    if (this.phase !== "round:vote") {
+      return err("WRONG_PHASE", "Ce n'est plus l'heure de voter.");
+    }
+    const voter = this.players.get(voterId);
+    if (!voter) return err("NOT_IN_GAME", "Pas dans la partie.");
+    const target = this.players.get(targetId);
+    if (!target) return err("INVALID_TARGET", "Accusé introuvable.");
+    if (targetId === voterId && !this.settings.allowSelfVote) {
+      return err("INVALID_TARGET", "L'auto-vote est interdit.");
+    }
+    if (doubleVote && voter.doubleVoteRemaining < 1) {
+      return err(
+        "NO_DOUBLE_VOTE_LEFT",
+        "Tu n'as plus de double-vote pour cette partie."
+      );
+    }
+
+    // Refund previous double-vote if user is downgrading
+    const previous = this.votes.get(voterId);
+    if (previous?.double && !doubleVote) {
+      voter.doubleVoteRemaining = 1;
+    }
+    if (doubleVote && !previous?.double) {
+      voter.doubleVoteRemaining = 0;
+    }
+    this.votes.set(voterId, { targetId, double: doubleVote });
+
+    // Short-circuit when everyone connected has voted
+    if (this.allConnectedVoted()) {
+      this.endVotePhase();
+    } else {
+      this.broadcast();
+    }
+    return { ok: true };
   }
 
-  public destroy(): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
-    for (const p of this.players.values()) this.cancelDisconnectTimer(p);
-    if (this.destroyTimer) clearTimeout(this.destroyTimer);
-    this.destroyTimer = null;
-    this.log(`room ${this.code} destroyed`);
+  // ──────────────────────────────────────────────────────────────
+  //  State machine internals
+  // ──────────────────────────────────────────────────────────────
+
+  private startNextRound(): void {
+    if (!this.picker) this.picker = new QuestionPicker(this.settings.categories);
+    this.currentQuestion = this.picker.next();
+    this.votes.clear();
+    this.lastReveal = null;
+    this.transitionTo("round:question", PHASE_DURATION.question);
   }
+
+  private endVotePhase(): void {
+    const reveal = this.computeReveal();
+    this.lastReveal = reveal;
+    this.applyScoring(reveal);
+    this.applyMissedRoundsAndKicks();
+    this.transitionTo("round:reveal:intro", PHASE_DURATION.revealIntro);
+  }
+
+  private endRound(): void {
+    if (this.currentRoundIndex + 1 >= this.settings.rounds) {
+      this.endGame();
+    } else {
+      this.currentRoundIndex++;
+      this.startNextRound();
+    }
+  }
+
+  private endGame(): void {
+    this.stopPhaseTimer();
+    this.phase = "end";
+    this.phaseEndsAt = null;
+    this.currentQuestion = null;
+    this.votes.clear();
+    this.broadcast();
+  }
+
+  private abortToLobby(): void {
+    this.log(`room ${this.code} aborted to lobby (not enough players)`);
+    this.resetToLobby();
+  }
+
+  private resetToLobby(): void {
+    this.stopPhaseTimer();
+    this.phase = "lobby";
+    this.phaseEndsAt = null;
+    this.currentRoundIndex = 0;
+    this.currentQuestion = null;
+    this.votes.clear();
+    this.lastReveal = null;
+    this.picker = null;
+    for (const p of this.players.values()) {
+      p.score = 0;
+      p.doubleVoteRemaining = 1;
+      p.missedRounds = 0;
+    }
+    this.broadcast();
+  }
+
+  private transitionTo(phase: Phase, durationMs: number): void {
+    this.stopPhaseTimer();
+    this.phase = phase;
+    this.phaseEndsAt = Date.now() + durationMs;
+    this.broadcast();
+    this.phaseTimer = setTimeout(() => this.onPhaseTimerEnd(), durationMs);
+  }
+
+  private onPhaseTimerEnd(): void {
+    this.phaseTimer = null;
+    switch (this.phase) {
+      case "round:question":
+        this.transitionTo("round:vote", this.settings.voteDurationSec * 1_000);
+        break;
+      case "round:vote":
+        this.endVotePhase();
+        break;
+      case "round:reveal:intro":
+        this.transitionTo("round:reveal:box", PHASE_DURATION.revealBox);
+        break;
+      case "round:reveal:box":
+        this.transitionTo(
+          "round:reveal:elimination",
+          PHASE_DURATION.revealElimination
+        );
+        break;
+      case "round:reveal:elimination":
+        this.transitionTo("round:reveal:verdict", PHASE_DURATION.revealVerdict);
+        break;
+      case "round:reveal:verdict":
+        this.transitionTo("round:score", PHASE_DURATION.score);
+        break;
+      case "round:score":
+        this.endRound();
+        break;
+      default:
+        // lobby / end have no timer
+        break;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  Scoring & reveal
+  // ──────────────────────────────────────────────────────────────
+
+  private computeReveal(): RevealState {
+    const tally = new Map<PlayerId, number>();
+    const votersFor = new Map<PlayerId, PlayerId[]>();
+    const doubleUsers: PlayerId[] = [];
+
+    for (const [voterId, vote] of this.votes) {
+      const weight = vote.double ? 2 : 1;
+      tally.set(vote.targetId, (tally.get(vote.targetId) ?? 0) + weight);
+      if (vote.double) doubleUsers.push(voterId);
+      const arr = votersFor.get(vote.targetId) ?? [];
+      arr.push(voterId);
+      votersFor.set(vote.targetId, arr);
+    }
+
+    let max = 0;
+    for (const v of tally.values()) if (v > max) max = v;
+    const guilty: PlayerId[] =
+      max > 0
+        ? [...tally.entries()].filter(([, v]) => v === max).map(([id]) => id)
+        : [];
+
+    // Build the results array — include all players (even 0 votes) for box anim.
+    const entries: RevealResultEntry[] = [];
+    for (const p of this.players.values()) {
+      const count = tally.get(p.id) ?? 0;
+      const voters = this.settings.anonymousVotes
+        ? undefined
+        : votersFor.get(p.id) ?? [];
+      entries.push({ playerId: p.id, voteCount: count, voters });
+    }
+    entries.sort((a, b) => b.voteCount - a.voteCount);
+
+    // Score: voters whose target is guilty get points
+    const pointsAwarded: { playerId: PlayerId; delta: number }[] = [];
+    const guiltySet = new Set(guilty);
+    for (const [voterId, vote] of this.votes) {
+      if (guiltySet.has(vote.targetId)) {
+        const delta = vote.double ? 2 : 1;
+        pointsAwarded.push({ playerId: voterId, delta });
+      }
+    }
+
+    return {
+      results: entries,
+      guilty,
+      doubleVoteUsedBy: doubleUsers,
+      pointsAwarded,
+    };
+  }
+
+  private applyScoring(reveal: RevealState): void {
+    for (const { playerId, delta } of reveal.pointsAwarded) {
+      const p = this.players.get(playerId);
+      if (p) p.score += delta;
+    }
+  }
+
+  private applyMissedRoundsAndKicks(): void {
+    const toKick: PlayerId[] = [];
+    for (const p of this.players.values()) {
+      if (!this.votes.has(p.id)) {
+        p.missedRounds += 1;
+        if (!p.connected && p.missedRounds >= MAX_MISSED_ROUNDS) {
+          toKick.push(p.id);
+        }
+      } else {
+        p.missedRounds = 0;
+      }
+    }
+    for (const id of toKick) this.removePlayer(id);
+  }
+
+  private allConnectedVoted(): boolean {
+    for (const p of this.players.values()) {
+      if (!p.connected) continue;
+      if (!this.votes.has(p.id)) return false;
+    }
+    return this.players.size > 0;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  Snapshot
+  // ──────────────────────────────────────────────────────────────
 
   public snapshot(): RoomState {
+    const round: RoundPublicState | null =
+      this.phase === "lobby" || this.phase === "end"
+        ? null
+        : {
+            index: this.currentRoundIndex,
+            total: this.settings.rounds,
+            question: this.phase === "round:question" || this.phase === "round:vote"
+              ? this.currentQuestion
+              : this.currentQuestion, // keep question visible during reveal too
+            votedPlayerIds: [...this.votes.keys()],
+          };
+
+    const reveal =
+      this.phase === "round:reveal:intro" ||
+      this.phase === "round:reveal:box" ||
+      this.phase === "round:reveal:elimination" ||
+      this.phase === "round:reveal:verdict" ||
+      this.phase === "round:score"
+        ? this.lastReveal
+        : null;
+
     return {
       code: this.code,
       hostId: this.hostId,
       phase: this.phase,
+      phaseEndsAt: this.phaseEndsAt,
       players: [...this.players.values()].map(toPublic),
       settings: this.settings,
-      round: this.round,
-      reveal: this.reveal,
+      round,
+      reveal,
     };
   }
 
-  // --- Internals ---
+  // ──────────────────────────────────────────────────────────────
+  //  Helpers
+  // ──────────────────────────────────────────────────────────────
 
   private createPlayer(pseudo: string, isHost: boolean): ServerPlayer {
     const id = nanoid(12);
@@ -244,28 +572,35 @@ export class Room {
     return player;
   }
 
-  private cancelDisconnectTimer(p: ServerPlayer) {
+  private cancelDisconnectTimer(p: ServerPlayer): void {
     if (p.disconnectTimer) {
       clearTimeout(p.disconnectTimer);
       p.disconnectTimer = null;
     }
   }
 
-  private scheduleDestroy() {
+  private stopPhaseTimer(): void {
+    if (this.phaseTimer) {
+      clearTimeout(this.phaseTimer);
+      this.phaseTimer = null;
+    }
+  }
+
+  private scheduleDestroy(): void {
     if (this.destroyTimer) return;
     this.destroyTimer = setTimeout(() => {
       if (this.players.size === 0) this.onEmpty(this.code);
     }, 60_000);
   }
 
-  private cancelDestroy() {
+  private cancelDestroy(): void {
     if (this.destroyTimer) {
       clearTimeout(this.destroyTimer);
       this.destroyTimer = null;
     }
   }
 
-  private broadcast() {
+  private broadcast(): void {
     this.emitState(this.snapshot());
   }
 }
@@ -282,10 +617,13 @@ function toPublic(p: ServerPlayer): PlayerPublic {
   };
 }
 
-function clamp(n: number, lo: number, hi: number) {
+function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function err(code: ErrorPayload["code"], message: string): { ok: false; error: ErrorPayload } {
+function err(
+  code: ErrorPayload["code"],
+  message: string
+): { ok: false; error: ErrorPayload } {
   return { ok: false, error: { code, message } };
 }

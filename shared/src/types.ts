@@ -45,29 +45,30 @@ export interface Question {
 }
 
 export interface RoundPublicState {
-  index: number;            // 0-based round index
+  index: number;                  // 0-based round index
   total: number;
   question: Question | null;
-  voteEndsAt: number | null; // server unix ms
-  votedPlayerIds: PlayerId[]; // who already locked their vote (not WHAT)
+  votedPlayerIds: PlayerId[];     // who locked a vote (not WHAT)
 }
 
 export interface RevealResultEntry {
   playerId: PlayerId;
-  voteCount: number;
-  voters?: PlayerId[]; // present only if !anonymousVotes
+  voteCount: number;              // weighted (includes double-votes)
+  voters?: PlayerId[];            // present only if !anonymousVotes
 }
 
 export interface RevealState {
-  results: RevealResultEntry[];     // sorted desc
-  guilty: PlayerId[];                // 1 or more (tie = multiple)
-  doubleVoteUsedBy: PlayerId | null;
+  results: RevealResultEntry[];   // sorted desc by voteCount
+  guilty: PlayerId[];             // 1 or more (tie = multiple)
+  doubleVoteUsedBy: PlayerId[];   // players who burned their double-vote this round
+  pointsAwarded: { playerId: PlayerId; delta: number }[];
 }
 
 export interface RoomState {
   code: RoomCode;
   hostId: PlayerId;
   phase: Phase;
+  phaseEndsAt: number | null;     // server unix ms — null in lobby/end
   players: PlayerPublic[];
   settings: RoomSettings;
   round: RoundPublicState | null;
@@ -79,9 +80,14 @@ export interface ErrorPayload {
     | "ROOM_NOT_FOUND"
     | "ROOM_FULL"
     | "GAME_IN_PROGRESS"
+    | "NOT_IN_GAME"
+    | "WRONG_PHASE"
+    | "INVALID_TARGET"
+    | "NO_DOUBLE_VOTE_LEFT"
     | "PSEUDO_TAKEN"
     | "PSEUDO_INVALID"
     | "NOT_HOST"
+    | "NOT_ENOUGH_PLAYERS"
     | "BAD_REQUEST"
     | "RATE_LIMITED";
   message: string;

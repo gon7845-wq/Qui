@@ -49,12 +49,8 @@ io.on("connection", (socket) => {
     const { room } = manager.createRoom({ pseudo: clean });
     const state = room.snapshot();
     const host = state.players.find((p) => p.isHost)!;
-    // Attach the host's socket
     room.attachSocket(host.id, socket.id);
     bindToRoom(room.code, host.id);
-    // Find token from internal — we re-call addPlayer? No, host already created. Use a side channel:
-    // The Room constructor created the host but didn't return token. We expose snapshot for state, not token.
-    // We need the host token: read from the room via a getter we'll add.
     const token = room.getPlayerToken(host.id)!;
     ack({ ok: true, code: room.code, playerId: host.id, token });
   });
@@ -108,12 +104,46 @@ io.on("connection", (socket) => {
   });
 
   socket.on("game:start", (ack) => {
-    // Wired in next iteration once the round loop lands.
-    ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Boucle de jeu pas encore implémentée." } });
+    if (!session.roomCode || !session.playerId) {
+      ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Pas dans une partie." } });
+      return;
+    }
+    const room = manager.getRoom(session.roomCode);
+    if (!room) {
+      ack?.({ ok: false, error: { code: "ROOM_NOT_FOUND", message: "Partie introuvable." } });
+      return;
+    }
+    ack?.(room.startGame(session.playerId));
   });
 
-  socket.on("vote:cast", (_payload, ack) => {
-    ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Boucle de jeu pas encore implémentée." } });
+  socket.on("game:rematch", (ack) => {
+    if (!session.roomCode || !session.playerId) {
+      ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Pas dans une partie." } });
+      return;
+    }
+    const room = manager.getRoom(session.roomCode);
+    if (!room) {
+      ack?.({ ok: false, error: { code: "ROOM_NOT_FOUND", message: "Partie introuvable." } });
+      return;
+    }
+    ack?.(room.rematch(session.playerId));
+  });
+
+  socket.on("vote:cast", ({ targetId, doubleVote }, ack) => {
+    if (!session.roomCode || !session.playerId) {
+      ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Pas dans une partie." } });
+      return;
+    }
+    const room = manager.getRoom(session.roomCode);
+    if (!room) {
+      ack?.({ ok: false, error: { code: "ROOM_NOT_FOUND", message: "Partie introuvable." } });
+      return;
+    }
+    if (typeof targetId !== "string") {
+      ack?.({ ok: false, error: { code: "BAD_REQUEST", message: "Cible manquante." } });
+      return;
+    }
+    ack?.(room.castVote(session.playerId, targetId, Boolean(doubleVote)));
   });
 
   socket.on("disconnect", () => {

@@ -3,7 +3,6 @@ import type {
   PlayerId,
   RoomCode,
   RoomSettings,
-  RoomState,
 } from "./types.js";
 
 // Client -> Server
@@ -37,6 +36,10 @@ export interface ClientToServerEvents {
     ack?: (res: { ok: true } | { ok: false; error: ErrorPayload }) => void
   ) => void;
 
+  "game:rematch": (
+    ack?: (res: { ok: true } | { ok: false; error: ErrorPayload }) => void
+  ) => void;
+
   "vote:cast": (
     payload: { targetId: PlayerId; doubleVote?: boolean },
     ack?: (res: { ok: true } | { ok: false; error: ErrorPayload }) => void
@@ -45,6 +48,6 @@ export interface ClientToServerEvents {
 
 // Server -> Client
 export interface ServerToClientEvents {
-  "room:state": (state: RoomState) => void;
+  "room:state": (state: import("./types.js").RoomState) => void;
   "error": (err: ErrorPayload) => void;
 }
