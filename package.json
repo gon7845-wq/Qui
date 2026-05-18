@@ -11,7 +11,8 @@
     "dev": "npm-run-all --parallel dev:server dev:client",
     "dev:server": "npm run dev -w @qui/server",
     "dev:client": "npm run dev -w @qui/client",
-    "build": "npm run build -w @qui/server && npm run build -w @qui/client",
+    "build": "npm run build -w @qui/client",
+    "start": "npm run start -w @qui/server",
     "typecheck": "npm run typecheck -w @qui/shared && npm run typecheck -w @qui/server && npm run typecheck -w @qui/client"
   },
   "devDependencies": {

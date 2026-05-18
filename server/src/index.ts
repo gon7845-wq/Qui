@@ -1,4 +1,7 @@
 import http from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -12,15 +15,44 @@ import { RoomManager, roomChannel } from "./roomManager.js";
 import { sanitizePseudo } from "./pseudo.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
-const ORIGIN = process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? null;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLIENT_DIST = path.resolve(__dirname, "../../client/dist");
+const HAS_CLIENT_BUNDLE = existsSync(path.join(CLIENT_DIST, "index.html"));
 
 const app = express();
-app.use(cors({ origin: ORIGIN }));
+
+// CORS only when running cross-origin (dev). In prod the client is
+// served from the same origin and CORS is moot.
+if (CLIENT_ORIGIN) {
+  app.use(cors({ origin: CLIENT_ORIGIN }));
+}
+
 app.get("/health", (_req, res) => res.json({ ok: true, t: Date.now() }));
+
+// Serve the built client in production
+if (HAS_CLIENT_BUNDLE) {
+  app.use(
+    express.static(CLIENT_DIST, {
+      maxAge: "1y",
+      index: false,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        }
+      },
+    })
+  );
+  // SPA fallback — every non-/socket.io route resolves to index.html
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(CLIENT_DIST, "index.html"));
+  });
+}
 
 const httpServer = http.createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-  cors: { origin: ORIGIN, credentials: true },
+  cors: CLIENT_ORIGIN ? { origin: CLIENT_ORIGIN, credentials: true } : undefined,
   pingTimeout: 20_000,
 });
 
@@ -155,5 +187,12 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`[qui] server listening on http://localhost:${PORT}`);
-  console.log(`[qui] accepting client origin: ${ORIGIN}`);
+  if (HAS_CLIENT_BUNDLE) {
+    console.log(`[qui] serving client bundle from ${CLIENT_DIST}`);
+  } else {
+    console.log(`[qui] dev mode — client must be served separately`);
+  }
+  if (CLIENT_ORIGIN) {
+    console.log(`[qui] CORS open for ${CLIENT_ORIGIN}`);
+  }
 });
