@@ -1,13 +1,20 @@
-node_modules/
-dist/
-build/
+node_modules
+dist
+build
 .env
 .env.local
 .DS_Store
 *.log
-.vite/
-.cache/
-.railway/
+.vite
+.turbo
+coverage
+
+# editors / agents
+.vscode
+.idea
 .claude/settings.local.json
-.playwright-mcp/
-*.png
+
+# playwright
+playwright-report
+test-results
+screenshots

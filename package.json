@@ -1,17 +1,24 @@
 {
   "name": "qui",
-  "version": "1.0.0",
   "private": true,
-  "description": "Qui ? - Party voting game",
+  "version": "0.0.0",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
   "scripts": {
-    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
-    "start": "node server/index.js",
-    "dev:server": "npm --prefix server run dev",
-    "dev:client": "npm --prefix client run dev",
-    "postinstall": "echo \"root install done\""
+    "dev": "npm-run-all --parallel dev:server dev:client",
+    "dev:server": "npm run dev -w @qui/server",
+    "dev:client": "npm run dev -w @qui/client",
+    "build": "npm run build -w @qui/server && npm run build -w @qui/client",
+    "typecheck": "npm run typecheck -w @qui/shared && npm run typecheck -w @qui/server && npm run typecheck -w @qui/client"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.6.3"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20"
   }
 }

@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    strictPort: true,
     proxy: {
       "/socket.io": {
         target: "http://localhost:3001",
@@ -14,7 +15,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist",
-    sourcemap: false,
+    target: "es2022",
+    sourcemap: true,
   },
 });

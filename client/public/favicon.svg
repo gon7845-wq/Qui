@@ -1,18 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <radialGradient id="felt" cx="50%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#5E2128"/>
-      <stop offset="60%" stop-color="#4D1820"/>
-      <stop offset="100%" stop-color="#2A0810"/>
-    </radialGradient>
-    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#E9CB6F"/>
-      <stop offset="100%" stop-color="#8C6F22"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="6" fill="#1A0C08"/>
-  <circle cx="32" cy="32" r="26" fill="url(#felt)" stroke="url(#gold)" stroke-width="2"/>
-  <text x="50%" y="58%" text-anchor="middle" dominant-baseline="middle"
-        font-family="Impact, sans-serif" font-weight="700"
-        font-size="26" fill="#C8A23F">Q?</text>
+  <rect width="64" height="64" rx="12" fill="#0b0a0e"/>
+  <path d="M14 40 L32 22 L50 40 Z" fill="#c9a35a"/>
+  <rect x="28" y="40" width="8" height="16" fill="#c9a35a"/>
+  <circle cx="32" cy="14" r="4" fill="#e8dcb0"/>
 </svg>
