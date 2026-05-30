@@ -17,24 +17,70 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "questions.json");
 
 // ─── Default seed ───
+// Chaque catégorie est reliée à une ambiance (tone) qui pilote sa couleur en jeu
+// et le tri du bulletin de fin : warm = le meilleur, spicy = le pire, fun = neutre.
 const DEFAULT_CATEGORIES = [
-  { id: "cat-warm", name: "Le meilleur", emoji: "✨", tone: "warm" },
-  { id: "cat-spicy", name: "Le pire", emoji: "🔥", tone: "spicy" },
-  { id: "cat-fun", name: "Pour rire", emoji: "🎲", tone: "fun" },
+  { id: "cat-gentil", name: "Gentillesse", emoji: "💛", tone: "warm" },
+  { id: "cat-talents", name: "Talents", emoji: "🦸", tone: "warm" },
+  { id: "cat-groupe", name: "Le groupe", emoji: "👥", tone: "warm" },
+  { id: "cat-drole", name: "Drôle", emoji: "😂", tone: "fun" },
+  { id: "cat-futur", name: "Prédictions", emoji: "🔮", tone: "fun" },
+  { id: "cat-absurde", name: "Absurde", emoji: "👽", tone: "fun" },
+  { id: "cat-philo", name: "Philo", emoji: "🧠", tone: "fun" },
+  { id: "cat-couple", name: "Couple", emoji: "💔", tone: "spicy" },
+  { id: "cat-genant", name: "Gênant", emoji: "😬", tone: "spicy" },
+  { id: "cat-trash", name: "Sans pitié", emoji: "🔥", tone: "spicy" },
 ];
 
+// Anciennes catégories par défaut (v1) — utilisées par la migration.
+const OLD_DEFAULT_IDS = ["cat-warm", "cat-spicy", "cat-fun"];
+
 function seed() {
-  const byTone = { warm: "cat-warm", spicy: "cat-spicy", fun: "cat-fun" };
   return {
-    version: 1,
+    version: 2,
     categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
     questions: QUESTIONS.map((q) => ({
       id: randomUUID(),
       text: q.text,
-      categoryId: byTone[q.tone] || "cat-fun",
+      categoryId: "cat-" + q.cat,
       enabled: true,
     })),
   };
+}
+
+// Migration non-destructive : ajoute les catégories par défaut manquantes,
+// re-classe les questions seed (matchées par texte) hors des anciennes
+// catégories v1 vers leur thème, supprime les anciennes catégories devenues vides.
+// Ne touche jamais aux questions/catégories ajoutées ou déplacées par l'utilisateur.
+function migrate() {
+  let changed = false;
+  for (const c of DEFAULT_CATEGORIES) {
+    if (!data.categories.find((x) => x.id === c.id)) {
+      data.categories.push({ ...c });
+      changed = true;
+    }
+  }
+  const textToCat = new Map(QUESTIONS.map((q) => [q.text, "cat-" + q.cat]));
+  for (const q of data.questions) {
+    const target = textToCat.get(q.text);
+    if (target && OLD_DEFAULT_IDS.includes(q.categoryId) && q.categoryId !== target) {
+      q.categoryId = target;
+      changed = true;
+    }
+  }
+  for (const oldId of OLD_DEFAULT_IDS) {
+    if (
+      data.categories.find((c) => c.id === oldId) &&
+      !data.questions.some((q) => q.categoryId === oldId)
+    ) {
+      data.categories = data.categories.filter((c) => c.id !== oldId);
+      changed = true;
+    }
+  }
+  if (changed) {
+    data.version = 2;
+    persist();
+  }
 }
 
 // ─── In-memory cache ───
@@ -47,6 +93,7 @@ function ensureLoaded() {
     const parsed = JSON.parse(raw);
     if (parsed && Array.isArray(parsed.categories) && Array.isArray(parsed.questions)) {
       data = parsed;
+      migrate();
       return data;
     }
   } catch {
