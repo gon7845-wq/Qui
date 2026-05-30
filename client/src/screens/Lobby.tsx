@@ -57,35 +57,27 @@ export function Lobby() {
             </div>
 
             {isHost && (
-              <div className="mt-6 border-t border-[#F3E7DD] pt-5">
-                <div className="label text-ink-soft mb-3">Réglages</div>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  <Pip
-                    active={lobby.settings.anonymous}
-                    onClick={() => updateSettings({ anonymous: !lobby.settings.anonymous })}
-                    label={lobby.settings.anonymous ? "Anonyme" : "Visibles"}
-                  />
-                  <Pip
-                    active={lobby.settings.allowSelfVote === false}
-                    onClick={() => updateSettings({ allowSelfVote: !lobby.settings.allowSelfVote })}
-                    label={lobby.settings.allowSelfVote === false ? "Sans vote perso" : "Vote perso OK"}
-                  />
-                  {[5, 10, 15].map((v) => (
-                    <Pip
-                      key={v}
-                      active={lobby.settings.voteDuration === v}
-                      onClick={() => updateSettings({ voteDuration: v })}
-                      label={`${v}s`}
-                    />
-                  ))}
-                  {[5, 8, 12, 16].map((v) => (
-                    <Pip
-                      key={`q${v}`}
-                      active={lobby.settings.questionCount === v}
-                      onClick={() => updateSettings({ questionCount: v })}
-                      label={`${v} manches`}
-                    />
-                  ))}
+              <div className="mt-6 border-t border-[#F3E7DD] pt-5 text-left">
+                <div className="label text-ink-soft mb-3 text-center">Réglages</div>
+                <div className="grid gap-3">
+                  <Pair label="Votes">
+                    <Pip active={!lobby.settings.anonymous} onClick={() => updateSettings({ anonymous: false })} label="Visibles" />
+                    <Pip active={lobby.settings.anonymous} onClick={() => updateSettings({ anonymous: true })} label="Anonymes" />
+                  </Pair>
+                  <Pair label="Temps de vote">
+                    {[5, 10, 15, 20].map((v) => (
+                      <Pip key={v} active={lobby.settings.voteDuration === v} onClick={() => updateSettings({ voteDuration: v })} label={`${v}s`} />
+                    ))}
+                  </Pair>
+                  <Pair label="Manches">
+                    {[5, 8, 12, 16].map((v) => (
+                      <Pip key={`q${v}`} active={lobby.settings.questionCount === v} onClick={() => updateSettings({ questionCount: v })} label={`${v}`} />
+                    ))}
+                  </Pair>
+                  <Pair label="Voter pour soi">
+                    <Pip active={lobby.settings.allowSelfVote !== false} onClick={() => updateSettings({ allowSelfVote: true })} label="Autorisé" />
+                    <Pip active={lobby.settings.allowSelfVote === false} onClick={() => updateSettings({ allowSelfVote: false })} label="Interdit" />
+                  </Pair>
                 </div>
               </div>
             )}
@@ -94,6 +86,15 @@ export function Lobby() {
           <PlayerGrid players={lobby.players} selfId={selfId} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function Pair({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div className="label text-ink-soft">{label}</div>
+      <div className="flex flex-wrap justify-end gap-1.5">{children}</div>
     </div>
   );
 }
