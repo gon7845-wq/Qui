@@ -16,6 +16,7 @@ interface Entry {
 interface Bulletin {
   id: string;
   pseudo: string;
+  avatar?: string;
   isHost: boolean;
   total: number;
   entries: Entry[];
@@ -41,6 +42,7 @@ export function Final() {
       return {
         id: r.id,
         pseudo: r.pseudo,
+        avatar: player?.avatar,
         isHost: !!player?.isHost,
         total: r.score,
         entries,
@@ -187,7 +189,7 @@ function BulletinCard({ b, rank, isSelf }: { b: Bulletin; rank: number; isSelf: 
             {medal} {MEDAL_LABELS[rank]}
           </motion.span>
         )}
-        <Avatar pseudo={b.pseudo} colorKey={b.id} size={92} />
+        <Avatar pseudo={b.pseudo} colorKey={b.id} emoji={b.avatar} size={92} />
 
         {/* Punchline */}
         <motion.div

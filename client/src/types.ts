@@ -11,6 +11,7 @@ export interface Player {
   isHost: boolean;
   score: number;
   connected: boolean;
+  avatar?: string;
 }
 
 export interface LobbySettings {

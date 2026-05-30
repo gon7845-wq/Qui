@@ -60,6 +60,7 @@ export function PlayerGrid({
               <Avatar
                 pseudo={p.pseudo}
                 colorKey={p.id}
+                emoji={p.avatar}
                 size={size}
                 isSelf={p.id === selfId}
                 isHost={p.isHost}

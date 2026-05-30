@@ -1,12 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { PlayerGrid } from "../components/PlayerGrid";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 
+const AVATAR_KEY = "qui_avatar";
+const EMOJIS = [
+  "😀", "😎", "🤓", "🥳", "🤩", "😈", "👻", "🤡", "💀", "👽", "🤖", "🎃",
+  "🦄", "🐱", "🐶", "🦊", "🐼", "🐸", "🐵", "🦁", "🐯", "🐨", "🐷", "🦉",
+  "🦖", "🐙", "🦋", "🌟", "🔥", "🍕", "👑", "🌈",
+];
+
 export function Lobby() {
-  const { lobby, selfId, leave, startGame, updateSettings } = useStore();
+  const { lobby, selfId, leave, startGame, updateSettings, setAvatar } = useStore();
   const [copied, setCopied] = useState(false);
+
+  const self = lobby?.players.find((p) => p.id === selfId);
+
+  // Réapplique l'avatar mémorisé à l'arrivée dans le lobby
+  useEffect(() => {
+    if (!selfId) return;
+    const saved = localStorage.getItem(AVATAR_KEY);
+    if (saved) setAvatar(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selfId]);
+
+  function pickAvatar(emoji: string) {
+    setAvatar(emoji);
+    localStorage.setItem(AVATAR_KEY, emoji);
+  }
+
   if (!lobby) return null;
 
   const isHost = lobby.hostId === selfId;
@@ -81,6 +104,37 @@ export function Lobby() {
                 </div>
               </div>
             )}
+          </Card>
+
+          <Card className="w-full p-4">
+            <div className="label text-ink-soft mb-3 text-center">Ton avatar</div>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              <button
+                onClick={() => pickAvatar("")}
+                className="grid h-10 w-10 place-items-center rounded-full font-display text-sm transition-transform hover:scale-110"
+                style={
+                  !self?.avatar
+                    ? { background: "linear-gradient(135deg,#FF5E8A,#FF9F43)", color: "#fff" }
+                    : { background: "#FFF1E9", color: "var(--ink-soft)" }
+                }
+                title="Initiale"
+              >
+                Aa
+              </button>
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => pickAvatar(e)}
+                  className="grid h-10 w-10 place-items-center rounded-full text-xl transition-transform hover:scale-110"
+                  style={{
+                    background: self?.avatar === e ? "linear-gradient(135deg,#FF5E8A,#FF9F43)" : "#FFF1E9",
+                    boxShadow: self?.avatar === e ? "0 0 0 2px var(--accent)" : undefined,
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
           </Card>
 
           <PlayerGrid players={lobby.players} selfId={selfId} />

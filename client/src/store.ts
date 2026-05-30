@@ -29,6 +29,7 @@ interface State {
   nextRound: () => void;
   pause: () => void;
   resume: () => void;
+  setAvatar: (emoji: string) => void;
   updateSettings: (settings: Partial<{
     anonymous: boolean;
     voteDuration: number;
@@ -153,6 +154,10 @@ export const useStore = create<State>((set, get) => ({
 
   resume: () => {
     get().socket?.emit("game:resume");
+  },
+
+  setAvatar: (emoji) => {
+    get().socket?.emit("lobby:avatar", { avatar: emoji });
   },
 
   updateSettings: (settings) => {

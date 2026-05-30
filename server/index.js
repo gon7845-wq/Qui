@@ -106,6 +106,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
         isHost: true,
         score: 0,
         connected: true,
+        avatar: "",
       },
     ],
     questions: [],
@@ -137,6 +138,11 @@ function sanitizePseudo(p) {
   return s;
 }
 
+function sanitizeAvatar(a) {
+  // garde au plus 4 "caractères" (un emoji peut être multi-codepoint)
+  return Array.from(String(a ?? "")).slice(0, 4).join("");
+}
+
 function publicLobby(lobby) {
   return {
     code: lobby.code,
@@ -149,6 +155,7 @@ function publicLobby(lobby) {
       isHost: p.isHost,
       score: p.score,
       connected: p.connected,
+      avatar: p.avatar || "",
     })),
     currentRound: lobby.currentRound,
     totalRounds: lobby.questions.length || lobby.settings.questionCount,
@@ -310,6 +317,7 @@ io.on("connection", (socket) => {
       isHost: false,
       score: 0,
       connected: true,
+      avatar: "",
     };
     lobby.players.push(p);
     playerLobby.set(socket.id, lobby.code);
@@ -330,6 +338,16 @@ io.on("connection", (socket) => {
       ...(s.questionCount !== undefined ? { questionCount: clamp(s.questionCount, 3, 20) } : {}),
       ...(s.allowSelfVote !== undefined ? { allowSelfVote: !!s.allowSelfVote } : {}),
     };
+    broadcast(lobby);
+  });
+
+  socket.on("lobby:avatar", ({ avatar }) => {
+    const code = playerLobby.get(socket.id);
+    const lobby = code && lobbies.get(code);
+    if (!lobby) return;
+    const p = lobby.players.find((x) => x.id === socket.id);
+    if (!p) return;
+    p.avatar = sanitizeAvatar(avatar);
     broadcast(lobby);
   });
 

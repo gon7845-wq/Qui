@@ -5,6 +5,8 @@ interface Props {
   pseudo: string;
   /** stable key for color (e.g. player id) — falls back to pseudo */
   colorKey?: string;
+  /** optional emoji avatar (shown instead of the initial) */
+  emoji?: string;
   size?: number;
   selected?: boolean;
   selectable?: boolean;
@@ -19,6 +21,7 @@ interface Props {
 export function Avatar({
   pseudo,
   colorKey,
+  emoji,
   size = 84,
   selected,
   selectable,
@@ -67,7 +70,11 @@ export function Avatar({
           textShadow: "0 2px 6px rgba(0,0,0,0.18)",
         }}
       >
-        {initial}
+        {emoji ? (
+          <span style={{ fontSize: Math.round(size * 0.55), lineHeight: 1, textShadow: "none" }}>{emoji}</span>
+        ) : (
+          initial
+        )}
 
         {isHost && (
           <span
