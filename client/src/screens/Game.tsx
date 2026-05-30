@@ -74,12 +74,13 @@ function QuestionPhase() {
   const selectableIds = new Set(
     lobby.players.filter((p) => !noSelf || p.id !== selfId).map((p) => p.id)
   );
+  const selectedName = selected ? lobby.players.find((p) => p.id === selected)?.pseudo ?? "" : "";
 
   function handleSelect(id: string) {
-    if (voted) return;
     if (noSelf && id === selfId) return;
+    if (id === selected) return; // déjà voté pour cette personne
     setSelected(id);
-    vote(id);
+    vote(id); // le serveur remplace le vote précédent
   }
 
   return (
@@ -127,9 +128,9 @@ function QuestionPhase() {
         </div>
       </Card>
 
-      <div className="label text-ink-soft">
+      <div className="label text-ink-soft text-center">
         {voted
-          ? "Vote enregistré — on attend les autres…"
+          ? `✓ Voté pour ${selectedName} — touche quelqu'un d'autre pour changer`
           : noSelf
           ? "👇 Touche quelqu'un (pas toi)"
           : "👇 Touche une personne"}
