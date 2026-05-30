@@ -33,6 +33,7 @@ export interface Lobby {
   roundEndTime: number | null;
   revealEndTime: number | null;
   votesCount: number;
+  paused: boolean;
 }
 
 export interface Ranked {

@@ -5,15 +5,18 @@ import { PlayerGrid } from "../components/PlayerGrid";
 import { Card } from "../components/Card";
 import { VoteReactions } from "../components/VoteReactions";
 import { Confetti } from "../components/Confetti";
+import { PauseOverlay } from "../components/PauseOverlay";
 import { TONE, tone } from "../lib/colors";
 import type { Ranked } from "../types";
 
 export function Game() {
-  const { lobby, reveal } = useStore();
+  const { lobby, reveal, selfId, pause, resume } = useStore();
   if (!lobby) return null;
 
   const isQuestion = lobby.state === "question" && !reveal;
   const isReveal = lobby.state === "reveal" && reveal;
+  const isHost = lobby.hostId === selfId;
+  const canPause = isHost && !lobby.paused && (isQuestion || isReveal);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -28,6 +31,19 @@ export function Game() {
           {isReveal && reveal && <RevealPhase key={`r-${lobby.currentRound}`} />}
         </AnimatePresence>
       </div>
+
+      {canPause && (
+        <button
+          onClick={pause}
+          className="fixed bottom-5 left-5 z-40 label text-ink-soft hover:text-ink transition-colors"
+        >
+          ⏸ Pause
+        </button>
+      )}
+
+      <AnimatePresence>
+        {lobby.paused && <PauseOverlay isHost={isHost} onResume={resume} />}
+      </AnimatePresence>
     </div>
   );
 }

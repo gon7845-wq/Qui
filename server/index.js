@@ -117,6 +117,8 @@ function createLobby(hostSocketId, hostPseudo, settings) {
     votes: {}, // voterId -> targetId (current round)
     history: [], // [{question, votes:{voterId:targetId}, ranked:[{id,pseudo,count}]}]
     roundTimer: null,
+    paused: false,
+    pauseRemaining: 0,
   };
   lobbies.set(code, lobby);
   playerLobby.set(hostSocketId, code);
@@ -154,6 +156,7 @@ function publicLobby(lobby) {
     roundEndTime: lobby.roundEndTime,
     revealEndTime: lobby.revealEndTime,
     votesCount: Object.keys(lobby.votes).length,
+    paused: lobby.paused,
   };
 }
 
@@ -170,6 +173,7 @@ function clearRoundTimer(lobby) {
 
 function startRound(lobby) {
   clearRoundTimer(lobby);
+  lobby.paused = false;
   lobby.state = "question";
   lobby.currentRound += 1;
   const idx = lobby.currentRound - 1;
@@ -358,9 +362,42 @@ io.on("connection", (socket) => {
     if (!lobby.settings.allowSelfVote && targetId === socket.id) return;
     lobby.votes[socket.id] = targetId;
     broadcast(lobby);
-    if (Object.keys(lobby.votes).length >= lobby.players.length) {
+    if (!lobby.paused && Object.keys(lobby.votes).length >= lobby.players.length) {
       endRound(lobby);
     }
+  });
+
+  socket.on("game:pause", () => {
+    const code = playerLobby.get(socket.id);
+    const lobby = code && lobbies.get(code);
+    if (!lobby || lobby.hostId !== socket.id || lobby.paused) return;
+    if (lobby.state !== "question" && lobby.state !== "reveal") return;
+    const now = Date.now();
+    const endTime = lobby.state === "question" ? lobby.roundEndTime : lobby.revealEndTime;
+    lobby.pauseRemaining = Math.max(500, (endTime || now) - now);
+    clearRoundTimer(lobby);
+    lobby.paused = true;
+    broadcast(lobby);
+  });
+
+  socket.on("game:resume", () => {
+    const code = playerLobby.get(socket.id);
+    const lobby = code && lobbies.get(code);
+    if (!lobby || lobby.hostId !== socket.id || !lobby.paused) return;
+    const remaining = lobby.pauseRemaining || 1000;
+    const now = Date.now();
+    lobby.paused = false;
+    if (lobby.state === "question") {
+      lobby.roundEndTime = now + remaining;
+      lobby.roundTimer = setTimeout(() => endRound(lobby), remaining);
+    } else if (lobby.state === "reveal") {
+      lobby.revealEndTime = now + remaining;
+      lobby.roundTimer = setTimeout(() => {
+        if (lobby.currentRound >= lobby.questions.length) endGame(lobby);
+        else startRound(lobby);
+      }, remaining);
+    }
+    broadcast(lobby);
   });
 
   socket.on("game:next", () => {

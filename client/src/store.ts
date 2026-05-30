@@ -27,6 +27,8 @@ interface State {
   vote: (targetId: string) => void;
   startGame: () => void;
   nextRound: () => void;
+  pause: () => void;
+  resume: () => void;
   updateSettings: (settings: Partial<{
     anonymous: boolean;
     voteDuration: number;
@@ -143,6 +145,14 @@ export const useStore = create<State>((set, get) => ({
 
   nextRound: () => {
     get().socket?.emit("game:next");
+  },
+
+  pause: () => {
+    get().socket?.emit("game:pause");
+  },
+
+  resume: () => {
+    get().socket?.emit("game:resume");
   },
 
   updateSettings: (settings) => {
