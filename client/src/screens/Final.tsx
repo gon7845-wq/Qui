@@ -4,7 +4,9 @@ import { useStore } from "../store";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Avatar } from "../components/Avatar";
+import { Confetti } from "../components/Confetti";
 import { TONE, tone, type Tone } from "../lib/colors";
+import { punchlineFor } from "../lib/punchlines";
 
 interface Entry {
   text: string;
@@ -57,7 +59,8 @@ export function Final() {
 
   if (!final || !lobby || bulletins.length === 0) return null;
   const isHost = lobby.hostId === selfId;
-  const current = bulletins[Math.min(idx, bulletins.length - 1)];
+  const rankIdx = Math.min(idx, bulletins.length - 1);
+  const current = bulletins[rankIdx];
 
   function go(d: number) {
     setDir(d);
@@ -72,6 +75,8 @@ export function Final() {
       >
         ← Quitter
       </button>
+
+      {current.total > 0 && rankIdx === 0 && <Confetti seed={current.id} count={70} />}
 
       <div className="min-h-full grid place-items-center px-5 py-16">
         <div className="w-full max-w-lg flex flex-col items-center gap-5">
@@ -92,7 +97,7 @@ export function Final() {
                 exit={{ opacity: 0, x: dir >= 0 ? -60 : 60 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               >
-                <BulletinCard b={current} isSelf={current.id === selfId} />
+                <BulletinCard b={current} rank={rankIdx} isSelf={current.id === selfId} />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -148,7 +153,10 @@ export function Final() {
   );
 }
 
-function BulletinCard({ b, isSelf }: { b: Bulletin; isSelf: boolean }) {
+const MEDALS = ["🥇", "🥈", "🥉"];
+const MEDAL_LABELS = ["La personne la plus citée", "2ᵉ plus cité·e", "3ᵉ plus cité·e"];
+
+function BulletinCard({ b, rank, isSelf }: { b: Bulletin; rank: number; isSelf: boolean }) {
   const groups = (
     [
       { tone: "warm" as Tone, title: `${TONE.warm.emoji} Ton bon côté`, entries: b.entries.filter((e) => e.tone === "warm") },
@@ -158,20 +166,43 @@ function BulletinCard({ b, isSelf }: { b: Bulletin; isSelf: boolean }) {
   ).filter((g) => g.entries.length > 0);
 
   const headline = b.entries[0];
+  const warm = b.entries.filter((e) => e.tone === "warm").reduce((s, e) => s + e.count, 0);
+  const spicy = b.entries.filter((e) => e.tone === "spicy").reduce((s, e) => s + e.count, 0);
+  const punch = punchlineFor(b.pseudo, { id: b.id, warm, spicy, total: b.total });
+  const medal = b.total > 0 && rank < 3 ? MEDALS[rank] : null;
+
+  let rowIdx = 0;
 
   return (
     <Card className="w-full p-7">
       <div className="flex flex-col items-center text-center gap-2">
+        {medal && (
+          <motion.span
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 14, delay: 0.1 }}
+            className="pill px-3 py-1 text-xs text-ink"
+            style={{ background: "rgba(255,94,138,0.12)" }}
+          >
+            {medal} {MEDAL_LABELS[rank]}
+          </motion.span>
+        )}
         <Avatar pseudo={b.pseudo} colorKey={b.id} size={92} />
-        <div className="flex items-center gap-2">
-          {b.topCited && (
-            <span className="brand-gradient font-display label" style={{ fontSize: 11 }}>
-              ⭐ Le plus cité de la soirée
-            </span>
-          )}
-        </div>
+
+        {/* Punchline */}
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0, y: 6 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.18 }}
+          className={`tone-${punch.tone} tone-gradient mt-1 rounded-2xl px-4 py-3 text-white`}
+        >
+          <span className="font-display" style={{ fontSize: "clamp(15px,2.6vmin,18px)", lineHeight: 1.3 }}>
+            {punch.text}
+          </span>
+        </motion.div>
+
         {headline && (
-          <div className={`tone-${headline.tone} mt-1`}>
+          <div className={`tone-${headline.tone} mt-2`}>
             <div className="label text-ink-faint">Le groupe te voit surtout comme</div>
             <div className="font-display tone-text leading-snug" style={{ fontSize: "clamp(18px,3.4vmin,24px)" }}>
               {headline.text}
@@ -190,18 +221,24 @@ function BulletinCard({ b, isSelf }: { b: Bulletin; isSelf: boolean }) {
             <div key={g.tone} className={`tone-${g.tone}`}>
               <div className="label text-ink-soft mb-2">{g.title}</div>
               <div className="flex flex-col gap-1.5">
-                {g.entries.map((e, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5"
-                    style={{ background: "#FFF1E9" }}
-                  >
-                    <span className="font-body text-sm text-ink leading-tight">{e.text}</span>
-                    <span className="tone-gradient shrink-0 grid place-items-center rounded-full px-2.5 h-7 text-white font-display text-sm">
-                      ×{e.count}
-                    </span>
-                  </div>
-                ))}
+                {g.entries.map((e, i) => {
+                  const d = 0.2 + rowIdx++ * 0.05;
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: d }}
+                      className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5"
+                      style={{ background: "#FFF1E9" }}
+                    >
+                      <span className="font-body text-sm text-ink leading-tight">{e.text}</span>
+                      <span className="tone-gradient shrink-0 grid place-items-center rounded-full px-2.5 h-7 text-white font-display text-sm">
+                        ×{e.count}
+                      </span>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           ))}

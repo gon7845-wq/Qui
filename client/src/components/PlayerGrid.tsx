@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { Avatar } from "./Avatar";
 import type { Player } from "../types";
 
@@ -47,23 +48,29 @@ export function PlayerGrid({
       style={{ gap, maxWidth: 680, width: "100%" }}
     >
       {w > 0 &&
-        players.map((p) => {
+        players.map((p, i) => {
           const selectable = !!onSelect && (selectableIds ? selectableIds.has(p.id) : true);
           return (
-            <Avatar
+            <motion.div
               key={p.id}
-              pseudo={p.pseudo}
-              colorKey={p.id}
-              size={size}
-              isSelf={p.id === selfId}
-              isHost={p.isHost}
-              selected={selectedId === p.id}
-              selectable={selectable}
-              onClick={() => onSelect?.(p.id)}
-              voteCount={voteCounts?.[p.id]}
-              highlight={highlightId === p.id}
-              dim={dimOthers && highlightId != null && highlightId !== p.id}
-            />
+              initial={{ opacity: 0, scale: 0.5, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 20, delay: i * 0.05 }}
+            >
+              <Avatar
+                pseudo={p.pseudo}
+                colorKey={p.id}
+                size={size}
+                isSelf={p.id === selfId}
+                isHost={p.isHost}
+                selected={selectedId === p.id}
+                selectable={selectable}
+                onClick={() => onSelect?.(p.id)}
+                voteCount={voteCounts?.[p.id]}
+                highlight={highlightId === p.id}
+                dim={dimOthers && highlightId != null && highlightId !== p.id}
+              />
+            </motion.div>
           );
         })}
     </div>

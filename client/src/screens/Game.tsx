@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import { PlayerGrid } from "../components/PlayerGrid";
 import { Card } from "../components/Card";
 import { VoteReactions } from "../components/VoteReactions";
+import { Confetti } from "../components/Confetti";
 import { TONE, tone } from "../lib/colors";
 import type { Ranked } from "../types";
 
@@ -174,6 +175,7 @@ function RevealPhase() {
       className={`w-full max-w-2xl flex flex-col items-center gap-6 tone-${t}`}
     >
       {stage === "verdict" && hasResult && <VoteReactions emoji={meta.reaction} count={totalVotes * 4} />}
+      {stage === "verdict" && hasResult && t === "warm" && <Confetti count={60} seed={reveal.round} />}
 
       <Card className="w-full p-6 text-center">
         <div className="label text-ink-faint mb-1">« {reveal.question.text} »</div>
