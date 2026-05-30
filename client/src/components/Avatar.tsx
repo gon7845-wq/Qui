@@ -43,7 +43,10 @@ export function Avatar({
         scale: selected ? 1.08 : 1,
         opacity: dim ? 0.4 : 1,
       }}
-      transition={{ type: "spring", stiffness: 360, damping: 22 }}
+      transition={{
+        scale: { type: "spring", stiffness: 600, damping: 14 }, // ressort rebondissant = petit "pop"
+        opacity: { duration: 0.2 },
+      }}
       className={`relative flex flex-col items-center gap-2 ${
         selectable ? "cursor-pointer" : "cursor-default"
       }`}

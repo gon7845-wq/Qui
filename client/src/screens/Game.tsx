@@ -79,6 +79,10 @@ function QuestionPhase() {
   function handleSelect(id: string) {
     if (noSelf && id === selfId) return;
     if (id === selected) return; // déjà voté pour cette personne
+    // petite vibration (mobile) à chaque vote / changement
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(selected ? [10, 30, 10] : 15); // double tap léger si on change
+    }
     setSelected(id);
     vote(id); // le serveur remplace le vote précédent
   }
