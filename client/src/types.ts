@@ -18,6 +18,7 @@ export interface LobbySettings {
   voteDuration: number;
   revealDuration: number;
   questionCount: number;
+  allowSelfVote: boolean;
 }
 
 export interface Lobby {

@@ -97,6 +97,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
       voteDuration: clamp(settings?.voteDuration ?? 10, 3, 30),
       revealDuration: 9,
       questionCount: clamp(settings?.questionCount ?? 8, 3, 20),
+      allowSelfVote: settings?.allowSelfVote !== false, // défaut: autorisé
     },
     players: [
       {
@@ -317,15 +318,13 @@ io.on("connection", (socket) => {
     const code = playerLobby.get(socket.id);
     const lobby = code && lobbies.get(code);
     if (!lobby || lobby.hostId !== socket.id || lobby.state !== "waiting") return;
+    const s = settings || {};
     lobby.settings = {
       ...lobby.settings,
-      anonymous: !!settings?.anonymous,
-      voteDuration: clamp(settings?.voteDuration ?? lobby.settings.voteDuration, 3, 30),
-      questionCount: clamp(
-        settings?.questionCount ?? lobby.settings.questionCount,
-        3,
-        20
-      ),
+      ...(s.anonymous !== undefined ? { anonymous: !!s.anonymous } : {}),
+      ...(s.voteDuration !== undefined ? { voteDuration: clamp(s.voteDuration, 3, 30) } : {}),
+      ...(s.questionCount !== undefined ? { questionCount: clamp(s.questionCount, 3, 20) } : {}),
+      ...(s.allowSelfVote !== undefined ? { allowSelfVote: !!s.allowSelfVote } : {}),
     };
     broadcast(lobby);
   });
@@ -356,6 +355,7 @@ io.on("connection", (socket) => {
     const lobby = code && lobbies.get(code);
     if (!lobby || lobby.state !== "question") return;
     if (!lobby.players.find((p) => p.id === targetId)) return;
+    if (!lobby.settings.allowSelfVote && targetId === socket.id) return;
     lobby.votes[socket.id] = targetId;
     broadcast(lobby);
     if (Object.keys(lobby.votes).length >= lobby.players.length) {

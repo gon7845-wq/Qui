@@ -20,6 +20,7 @@ interface State {
     anonymous: boolean;
     voteDuration: number;
     questionCount: number;
+    allowSelfVote: boolean;
   }) => Promise<{ ok: boolean; error?: string }>;
   joinLobby: (code: string) => Promise<{ ok: boolean; error?: string }>;
   leave: () => void;
@@ -30,6 +31,7 @@ interface State {
     anonymous: boolean;
     voteDuration: number;
     questionCount: number;
+    allowSelfVote: boolean;
   }>) => void;
 }
 

@@ -53,9 +53,14 @@ function QuestionPhase() {
   const pct = Math.min(1, remaining / (lobby.settings.voteDuration * 1000));
   const urgent = seconds <= 3;
   const voted = !!selected;
+  const noSelf = lobby.settings.allowSelfVote === false;
+  const selectableIds = new Set(
+    lobby.players.filter((p) => !noSelf || p.id !== selfId).map((p) => p.id)
+  );
 
   function handleSelect(id: string) {
     if (voted) return;
+    if (noSelf && id === selfId) return;
     setSelected(id);
     vote(id);
   }
@@ -106,7 +111,11 @@ function QuestionPhase() {
       </Card>
 
       <div className="label text-ink-soft">
-        {voted ? "Vote enregistré — on attend les autres…" : "👇 Touche une personne"}
+        {voted
+          ? "Vote enregistré — on attend les autres…"
+          : noSelf
+          ? "👇 Touche quelqu'un (pas toi)"
+          : "👇 Touche une personne"}
       </div>
 
       <PlayerGrid
@@ -114,7 +123,7 @@ function QuestionPhase() {
         selfId={selfId}
         selectedId={selected}
         onSelect={handleSelect}
-        selectableIds={new Set(lobby.players.map((p) => p.id))}
+        selectableIds={selectableIds}
       />
     </motion.div>
   );

@@ -20,13 +20,14 @@ export function Home({ prefilledCode }: Props) {
   const [anonymous, setAnonymous] = useState(false);
   const [voteDuration, setVoteDuration] = useState(10);
   const [questionCount, setQuestionCount] = useState(8);
+  const [allowSelfVote, setAllowSelfVote] = useState(true);
 
   const canSubmitPseudo = pseudo.trim().length >= 1 && !busy;
 
   async function handleCreate() {
     if (!canSubmitPseudo) return;
     setBusy(true);
-    const r = await createLobby({ anonymous, voteDuration, questionCount });
+    const r = await createLobby({ anonymous, voteDuration, questionCount, allowSelfVote });
     setBusy(false);
     if (!r.ok) setError(r.error ?? "Erreur");
   }
@@ -95,6 +96,10 @@ export function Home({ prefilledCode }: Props) {
                   <Pair label="Votes">
                     <Pip active={!anonymous} onClick={() => setAnonymous(false)} label="Visibles" />
                     <Pip active={anonymous} onClick={() => setAnonymous(true)} label="Anonymes" />
+                  </Pair>
+                  <Pair label="Voter pour soi">
+                    <Pip active={allowSelfVote} onClick={() => setAllowSelfVote(true)} label="Autorisé" />
+                    <Pip active={!allowSelfVote} onClick={() => setAllowSelfVote(false)} label="Interdit" />
                   </Pair>
                 </div>
                 <div className="mt-6">

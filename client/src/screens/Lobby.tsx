@@ -65,6 +65,11 @@ export function Lobby() {
                     onClick={() => updateSettings({ anonymous: !lobby.settings.anonymous })}
                     label={lobby.settings.anonymous ? "Anonyme" : "Visibles"}
                   />
+                  <Pip
+                    active={lobby.settings.allowSelfVote === false}
+                    onClick={() => updateSettings({ allowSelfVote: !lobby.settings.allowSelfVote })}
+                    label={lobby.settings.allowSelfVote === false ? "Sans vote perso" : "Vote perso OK"}
+                  />
                   {[5, 10, 15].map((v) => (
                     <Pip
                       key={v}
