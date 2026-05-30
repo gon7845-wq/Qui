@@ -8,6 +8,7 @@ build/
 .vite/
 .cache/
 .railway/
+server/data/
 .claude/settings.local.json
 .playwright-mcp/
 *.png

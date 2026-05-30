@@ -5,9 +5,12 @@ import { Home } from "./screens/Home";
 import { Lobby } from "./screens/Lobby";
 import { Game } from "./screens/Game";
 import { Final } from "./screens/Final";
+import { Admin } from "./screens/Admin";
 
 export default function App() {
   const { view, connect } = useStore();
+
+  const isAdmin = window.location.pathname.startsWith("/admin");
 
   const initialCode = (() => {
     const m = window.location.pathname.match(/^\/r\/([A-Z0-9]{4})/i);
@@ -15,16 +18,22 @@ export default function App() {
   })();
 
   useEffect(() => {
-    connect();
-  }, [connect]);
+    if (!isAdmin) connect();
+  }, [connect, isAdmin]);
 
   return (
     <div className="relative h-full w-full">
       <Background />
-      {view === "home" && <Home prefilledCode={initialCode} />}
-      {view === "lobby" && <Lobby />}
-      {view === "game" && <Game />}
-      {view === "final" && <Final />}
+      {isAdmin ? (
+        <Admin />
+      ) : (
+        <>
+          {view === "home" && <Home prefilledCode={initialCode} />}
+          {view === "lobby" && <Lobby />}
+          {view === "game" && <Game />}
+          {view === "final" && <Final />}
+        </>
+      )}
     </div>
   );
 }

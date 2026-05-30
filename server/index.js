@@ -4,7 +4,18 @@ import { Server } from "socket.io";
 import { customAlphabet } from "nanoid";
 import path from "path";
 import { fileURLToPath } from "url";
-import { pickQuestions } from "./questions.js";
+import {
+  pickQuestions,
+  enabledCount,
+  getData,
+  addCategory,
+  updateCategory,
+  deleteCategory,
+  addQuestion,
+  addQuestionsBulk,
+  updateQuestion,
+  deleteQuestion,
+} from "./store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,11 +26,54 @@ const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
 
+app.use(express.json({ limit: "512kb" }));
+
+// ─── Admin API ───
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "qui-admin-2026";
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn("[Qui ?] ADMIN_PASSWORD non défini — mot de passe par défaut 'qui-admin-2026'. À changer en prod !");
+}
+
+function adminAuth(req, res, next) {
+  if (req.headers["x-admin-key"] !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+  next();
+}
+
+function handle(fn) {
+  return (req, res) => {
+    try {
+      const result = fn(req);
+      res.json(result ?? { ok: true });
+    } catch (e) {
+      res.status(400).json({ error: e.message || "Erreur" });
+    }
+  };
+}
+
+app.post("/api/admin/login", (req, res) => {
+  if (req.body?.password === ADMIN_PASSWORD) return res.json({ ok: true });
+  res.status(401).json({ error: "Mot de passe incorrect" });
+});
+
+const admin = express.Router();
+admin.use(adminAuth);
+admin.get("/data", handle(() => getData()));
+admin.post("/categories", handle((req) => addCategory(req.body || {})));
+admin.put("/categories/:id", handle((req) => updateCategory(req.params.id, req.body || {})));
+admin.delete("/categories/:id", handle((req) => deleteCategory(req.params.id, req.body?.reassignTo)));
+admin.post("/questions", handle((req) => addQuestion(req.body || {})));
+admin.post("/questions/bulk", handle((req) => addQuestionsBulk(req.body?.texts || [], req.body?.categoryId)));
+admin.put("/questions/:id", handle((req) => updateQuestion(req.params.id, req.body || {})));
+admin.delete("/questions/:id", handle((req) => deleteQuestion(req.params.id)));
+app.use("/api/admin", admin);
+
 // Static client build
 const clientDist = path.resolve(__dirname, "../client/dist");
 app.use(express.static(clientDist));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
-app.get(/^\/(?!socket\.io).*/, (_req, res) => {
+app.get(/^\/(?!socket\.io|api|healthz).*/, (_req, res) => {
   res.sendFile(path.join(clientDist, "index.html"));
 });
 
@@ -283,6 +337,10 @@ io.on("connection", (socket) => {
     if (lobby.state !== "waiting" && lobby.state !== "ended") return;
     if (lobby.players.length < 3) {
       io.to(socket.id).emit("error:msg", { message: "Il faut au moins 3 joueurs" });
+      return;
+    }
+    if (enabledCount() < 1) {
+      io.to(socket.id).emit("error:msg", { message: "Aucune question active (voir l'admin)" });
       return;
     }
     // reset scores if restart
