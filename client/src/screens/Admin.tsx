@@ -191,16 +191,17 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 // ─── Questions tab ───
 function QuestionsTab({ data, reload, onErr }: { data: Data; reload: () => void; onErr: (e: any) => void }) {
   const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("all");
   const [onlyEnabled, setOnlyEnabled] = useState(false);
-  const catById = useMemo(() => Object.fromEntries(data.categories.map((c) => [c.id, c])), [data.categories]);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
-  const filtered = data.questions.filter((q) => {
-    if (catFilter !== "all" && q.categoryId !== catFilter) return false;
+  const matches = (q: Question) => {
     if (onlyEnabled && !q.enabled) return false;
     if (search && !q.text.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  });
+  };
+  const searching = search.trim().length > 0;
+  const flat = data.questions.filter(matches);
+  const catById = useMemo(() => Object.fromEntries(data.categories.map((c) => [c.id, c])), [data.categories]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -211,19 +212,9 @@ function QuestionsTab({ data, reload, onErr }: { data: Data; reload: () => void;
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="flex-1 min-w-[140px] rounded-xl bg-[#FFF1E9] px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+            placeholder="Rechercher dans toutes les questions…"
+            className="flex-1 min-w-[160px] rounded-xl bg-[#FFF1E9] px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
           />
-          <select
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-            className="rounded-xl bg-[#FFF1E9] px-3 py-2 text-sm text-ink outline-none"
-          >
-            <option value="all">Toutes catégories</option>
-            {data.categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
-            ))}
-          </select>
           <button
             onClick={() => setOnlyEnabled((v) => !v)}
             className="pill px-3 h-9 text-xs"
@@ -231,15 +222,58 @@ function QuestionsTab({ data, reload, onErr }: { data: Data; reload: () => void;
           >
             Actives seules
           </button>
-          <span className="label text-ink-faint ml-auto">{filtered.length} / {data.questions.length}</span>
+          <span className="label text-ink-faint ml-auto">
+            {searching ? `${flat.length} résultat${flat.length > 1 ? "s" : ""}` : `${data.questions.length} questions`}
+          </span>
         </div>
 
-        <div className="mt-3 flex flex-col gap-1.5">
-          {filtered.map((q) => (
-            <QuestionRow key={q.id} q={q} cat={catById[q.categoryId]} categories={data.categories} reload={reload} onErr={onErr} />
-          ))}
-          {filtered.length === 0 && <div className="label text-ink-faint py-6 text-center">Aucune question</div>}
-        </div>
+        {searching ? (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {flat.map((q) => (
+              <QuestionRow key={q.id} q={q} cat={catById[q.categoryId]} categories={data.categories} reload={reload} onErr={onErr} />
+            ))}
+            {flat.length === 0 && <div className="label text-ink-faint py-6 text-center">Aucun résultat</div>}
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-col gap-2">
+            {data.categories.map((cat) => {
+              const qs = data.questions.filter((q) => q.categoryId === cat.id);
+              const shown = qs.filter(matches);
+              const isOpen = !!open[cat.id];
+              return (
+                <div key={cat.id} className="rounded-2xl border border-[#F2E6DC] overflow-hidden">
+                  <button
+                    onClick={() => setOpen((o) => ({ ...o, [cat.id]: !o[cat.id] }))}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[#FFF8F1] transition-colors"
+                  >
+                    <span
+                      className="grid h-8 w-8 place-items-center rounded-full text-base shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${TONE[cat.tone].a}, ${TONE[cat.tone].b})` }}
+                    >
+                      {cat.emoji}
+                    </span>
+                    <span className="font-display text-ink flex-1 truncate">{cat.name}</span>
+                    <span className="label text-ink-faint shrink-0">{qs.length}</span>
+                    <span
+                      className="text-ink-faint shrink-0 text-lg leading-none"
+                      style={{ transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .2s" }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="flex flex-col gap-1.5 px-2 pb-2">
+                      {shown.map((q) => (
+                        <QuestionRow key={q.id} q={q} cat={cat} categories={data.categories} reload={reload} onErr={onErr} />
+                      ))}
+                      {shown.length === 0 && <div className="label text-ink-faint py-3 text-center">Aucune question</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </div>
   );
