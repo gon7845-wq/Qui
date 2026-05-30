@@ -1,5 +1,10 @@
 export type LobbyState = "waiting" | "question" | "reveal" | "ended";
 
+export interface Question {
+  text: string;
+  tone: "warm" | "spicy" | "fun";
+}
+
 export interface Player {
   id: string;
   pseudo: string;
@@ -23,7 +28,7 @@ export interface Lobby {
   players: Player[];
   currentRound: number;
   totalRounds: number;
-  currentQuestion: string | null;
+  currentQuestion: Question | null;
   roundEndTime: number | null;
   revealEndTime: number | null;
   votesCount: number;
@@ -36,7 +41,7 @@ export interface Ranked {
 }
 
 export interface RevealData {
-  question: string;
+  question: Question;
   ranked: Ranked[];
   votes: Record<string, string> | null;
   anonymous: boolean;
@@ -48,7 +53,7 @@ export interface RevealData {
 export interface FinalData {
   finalRanking: { id: string; pseudo: string; score: number }[];
   history: Array<{
-    question: string;
+    question: Question;
     ranked: Ranked[];
     votes: Record<string, string> | null;
   }>;

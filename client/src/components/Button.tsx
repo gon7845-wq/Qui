@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "gold" | "ghost" | "ruby";
+type Variant = "primary" | "soft" | "ghost";
 
 interface Props extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ref"> {
   variant?: Variant;
@@ -11,7 +11,7 @@ interface Props extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ref"> {
 }
 
 export function Button({
-  variant = "gold",
+  variant = "primary",
   size = "md",
   fullWidth,
   className = "",
@@ -19,43 +19,42 @@ export function Button({
   children,
   ...rest
 }: Props) {
-  const base =
-    "relative inline-flex items-center justify-center gap-2 font-display tracking-wider uppercase transition-all select-none rounded-full overflow-hidden";
   const sizes = {
-    sm: "h-9 px-5 text-[12px]",
-    md: "h-12 px-7 text-[13px]",
-    lg: "h-14 px-9 text-[15px]",
+    sm: "h-10 px-5 text-sm",
+    md: "h-12 px-7 text-[15px]",
+    lg: "h-14 px-9 text-base",
   };
-  const variants: Record<Variant, string> = {
-    gold:
-      "text-wood-900 disabled:opacity-50 disabled:cursor-not-allowed",
-    ghost:
-      "border border-cream/30 text-cream hover:border-cream/60 hover:bg-cream/[0.05] disabled:opacity-50 disabled:cursor-not-allowed",
-    ruby:
-      "bg-ruby_dark text-cream hover:bg-ruby disabled:opacity-50 disabled:cursor-not-allowed",
+
+  const variants: Record<Variant, React.CSSProperties> = {
+    primary: {
+      background: "linear-gradient(135deg, #FF5E8A 0%, #FF9F43 100%)",
+      color: "#fff",
+      boxShadow: "0 12px 26px -8px rgba(255,94,138,0.6), inset 0 1px 0 rgba(255,255,255,0.45)",
+    },
+    soft: {
+      background: "rgba(255,94,138,0.12)",
+      color: "var(--accent-deep)",
+    },
+    ghost: {
+      background: "transparent",
+      color: "var(--ink-soft)",
+      boxShadow: "inset 0 0 0 2px rgba(110,100,128,0.25)",
+    },
   };
-  const goldBg =
-    variant === "gold"
-      ? "linear-gradient(180deg, #E9CB6F 0%, #C8A23F 50%, #8C6F22 100%)"
-      : undefined;
 
   return (
     <motion.button
-      whileHover={!disabled ? { y: -1 } : undefined}
-      whileTap={!disabled ? { y: 1, scale: 0.98 } : undefined}
+      whileHover={!disabled ? { y: -2 } : undefined}
+      whileTap={!disabled ? { y: 0, scale: 0.97 } : undefined}
       transition={{ type: "spring", stiffness: 500, damping: 30 }}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`pill inline-flex items-center justify-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed ${sizes[size]} ${
+        fullWidth ? "w-full" : ""
+      } ${className}`}
       disabled={disabled}
-      style={{
-        background: goldBg,
-        boxShadow:
-          variant === "gold"
-            ? "0 0 0 1.5px #5D4810, inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 26px -8px rgba(0,0,0,0.6)"
-            : undefined,
-      }}
+      style={variants[variant]}
       {...(rest as any)}
     >
-      <span className="relative z-10">{children}</span>
+      {children}
     </motion.button>
   );
 }

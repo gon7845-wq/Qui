@@ -6,28 +6,19 @@ interface Props {
 }
 
 const sizes = {
-  sm: "text-2xl",
-  md: "text-4xl",
-  lg: "text-6xl md:text-7xl",
+  sm: "text-3xl",
+  md: "text-5xl",
+  lg: "text-7xl md:text-8xl",
 };
 
 export function Brand({ size = "md", className = "" }: Props) {
   return (
-    <span
-      className={`font-display ${sizes[size]} ${className}`}
-      style={{
-        background:
-          "linear-gradient(180deg, #E9CB6F 0%, #C8A23F 50%, #8C6F22 100%)",
-        WebkitBackgroundClip: "text",
-        backgroundClip: "text",
-        color: "transparent",
-        textShadow: "0 0 30px rgba(200,162,63,0.25)",
-      }}
-    >
-      QUI
+    <span className={`font-display brand-gradient inline-flex items-baseline ${sizes[size]} ${className}`}>
+      Qui
       <motion.span
-        animate={{ opacity: [0.55, 1, 0.55] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ rotate: [0, -8, 8, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        className="inline-block ml-0.5"
       >
         ?
       </motion.span>

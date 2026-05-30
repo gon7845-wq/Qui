@@ -142,14 +142,11 @@ function endRound(lobby) {
     .map((p) => ({ id: p.id, pseudo: p.pseudo, count: tally.get(p.id) || 0 }))
     .sort((a, b) => b.count - a.count);
 
-  // attribute points: winner(s) +3
-  const top = ranked[0]?.count || 0;
-  if (top > 0) {
-    for (const r of ranked) {
-      if (r.count === top) {
-        const player = lobby.players.find((p) => p.id === r.id);
-        if (player) player.score += 3;
-      }
+  // score = total des voix reçues sur la partie (stat "le plus cité")
+  for (const r of ranked) {
+    if (r.count > 0) {
+      const player = lobby.players.find((p) => p.id === r.id);
+      if (player) player.score += r.count;
     }
   }
 

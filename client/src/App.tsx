@@ -19,9 +19,8 @@ export default function App() {
   }, [connect]);
 
   return (
-    <div className="theatre-vignette relative h-full w-full">
+    <div className="relative h-full w-full">
       <Background />
-      <div className="ambient-dust" />
       {view === "home" && <Home prefilledCode={initialCode} />}
       {view === "lobby" && <Lobby />}
       {view === "game" && <Game />}

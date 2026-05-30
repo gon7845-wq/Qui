@@ -1,198 +1,212 @@
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "../store";
-import { Table } from "../components/Table";
-import { Seats } from "../components/Seats";
-import { CenterCard } from "../components/CenterCard";
+import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { Avatar } from "../components/Avatar";
+import { TONE, tone, type Tone } from "../lib/colors";
+
+interface Entry {
+  text: string;
+  tone: Tone;
+  count: number;
+}
+interface Bulletin {
+  id: string;
+  pseudo: string;
+  isHost: boolean;
+  total: number;
+  entries: Entry[];
+  topCited: boolean;
+}
 
 export function Final() {
   const { final, lobby, selfId, startGame, leave } = useStore();
-  if (!final || !lobby) return null;
 
+  const bulletins = useMemo<Bulletin[]>(() => {
+    if (!final || !lobby) return [];
+    const topScore = final.finalRanking[0]?.score ?? 0;
+    return final.finalRanking.map((r) => {
+      const player = lobby.players.find((p) => p.id === r.id);
+      const entries: Entry[] = [];
+      for (const h of final.history) {
+        const mine = h.ranked.find((x) => x.id === r.id);
+        if (mine && mine.count > 0) {
+          entries.push({ text: h.question.text, tone: tone(h.question.tone), count: mine.count });
+        }
+      }
+      entries.sort((a, b) => b.count - a.count);
+      return {
+        id: r.id,
+        pseudo: r.pseudo,
+        isHost: !!player?.isHost,
+        total: r.score,
+        entries,
+        topCited: r.score > 0 && r.score === topScore,
+      };
+    });
+  }, [final, lobby]);
+
+  const startIdx = useMemo(() => {
+    const i = bulletins.findIndex((b) => b.id === selfId);
+    return i >= 0 ? i : 0;
+  }, [bulletins, selfId]);
+
+  const [idx, setIdx] = useState(startIdx);
+  const [dir, setDir] = useState(0);
+
+  if (!final || !lobby || bulletins.length === 0) return null;
   const isHost = lobby.hostId === selfId;
-  const champion = final.finalRanking[0];
+  const current = bulletins[Math.min(idx, bulletins.length - 1)];
 
-  // Rebuild a player array sorted by score so seats show ranking spatially
-  const sortedPlayers = final.finalRanking
-    .map((r) => lobby.players.find((p) => p.id === r.id))
-    .filter(Boolean) as typeof lobby.players;
-
-  const scoresById: Record<string, number> = {};
-  final.finalRanking.forEach((r) => (scoresById[r.id] = r.score));
+  function go(d: number) {
+    setDir(d);
+    setIdx((i) => (i + d + bulletins.length) % bulletins.length);
+  }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-y-auto no-scrollbar">
       <button
         onClick={leave}
-        className="fixed top-5 left-5 z-40 label text-cream/55 hover:text-cream"
+        className="fixed top-5 left-5 z-40 label text-ink-soft hover:text-ink transition-colors"
       >
-        ← QUITTER
+        ← Quitter
       </button>
 
-      <div className="absolute inset-0 grid place-items-center px-3 py-6">
-        <Table>
-          {/* Spotlight on champion */}
-          {champion && (
-            <ChampionSpotlight
-              champId={champion.id}
-              players={sortedPlayers}
-            />
-          )}
-          <Seats
-            players={sortedPlayers}
-            selfId={selfId}
-            voteCounts={scoresById}
-            highlightId={champion?.id ?? null}
-          />
-          <CenterCard widthRatio={0.7} variant="plaque" className="!py-5">
-            <div className="label" style={{ color: "rgba(26,12,8,0.7)" }}>
-              LE PIRE DE LA SALLE
+      <div className="min-h-full grid place-items-center px-5 py-16">
+        <div className="w-full max-w-lg flex flex-col items-center gap-5">
+          <div className="text-center">
+            <div className="font-display brand-gradient" style={{ fontSize: "clamp(28px,6vmin,46px)" }}>
+              Les bulletins
             </div>
-            {champion ? (
+            <div className="label text-ink-soft mt-1">Le portrait de chacun par le groupe</div>
+          </div>
+
+          <div className="relative w-full" style={{ minHeight: 420 }}>
+            <AnimatePresence mode="wait" custom={dir}>
               <motion.div
-                initial={{ scale: 0.6, opacity: 0, rotate: -3 }}
-                animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                transition={{
-                  duration: 0.7,
-                  ease: [0.34, 1.56, 0.64, 1],
-                  delay: 0.3,
-                }}
-                className="font-display leading-[0.88] mt-1"
-                style={{
-                  fontSize: "clamp(44px, 11vmin, 110px)",
-                  color: "var(--wood-900)",
-                }}
+                key={current.id}
+                custom={dir}
+                initial={{ opacity: 0, x: dir >= 0 ? 60 : -60 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: dir >= 0 ? -60 : 60 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               >
-                {champion.pseudo}
+                <BulletinCard b={current} isSelf={current.id === selfId} />
               </motion.div>
-            ) : (
-              <div className="font-display text-3xl mt-2">—</div>
-            )}
-            {champion && (
-              <div
-                className="label mt-2"
-                style={{ color: "rgba(26,12,8,0.7)" }}
-              >
-                {champion.score} PTS
-              </div>
-            )}
-            <div className="mt-5 flex justify-center gap-2">
-              <Button variant="ghost" size="sm" onClick={leave}>
-                QUITTER
-              </Button>
-              {isHost && (
-                <Button variant="gold" size="sm" onClick={startGame}>
-                  REJOUER →
-                </Button>
-              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Nav */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => go(-1)}
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-ink-soft shadow-md hover:text-ink transition"
+              aria-label="Précédent"
+            >
+              ←
+            </button>
+            <div className="flex gap-1.5">
+              {bulletins.map((b, i) => (
+                <button
+                  key={b.id}
+                  onClick={() => {
+                    setDir(i > idx ? 1 : -1);
+                    setIdx(i);
+                  }}
+                  className="h-2 rounded-full transition-all"
+                  style={{
+                    width: i === idx ? 22 : 8,
+                    background: i === idx ? "var(--accent)" : "rgba(255,94,138,0.25)",
+                  }}
+                  aria-label={`Bulletin ${b.pseudo}`}
+                />
+              ))}
             </div>
-          </CenterCard>
-        </Table>
-      </div>
+            <button
+              onClick={() => go(1)}
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-ink-soft shadow-md hover:text-ink transition"
+              aria-label="Suivant"
+            >
+              →
+            </button>
+          </div>
 
-      {/* Recap drawer at the bottom (scrolls) */}
-      <RecapDrawer />
-    </div>
-  );
-}
-
-function ChampionSpotlight({
-  champId,
-  players,
-}: {
-  champId: string;
-  players: { id: string }[];
-}) {
-  // simple radial light at champion's seat (computed via Seats sizing isn't
-  // exposed; we duplicate the math here using the Seats wrapper sized to inset-0)
-  return (
-    <div className="absolute inset-0 z-[5] pointer-events-none">
-      <div
-        className="absolute spotlight"
-        style={{
-          left: "50%",
-          top: "50%",
-          width: "55%",
-          height: "55%",
-          marginLeft: "-27.5%",
-          marginTop: "-27.5%",
-          animation: "spot-pulse 3s ease-in-out infinite",
-          background:
-            "radial-gradient(circle, rgba(232,221,196,0.22) 0%, transparent 60%)",
-        }}
-      />
-    </div>
-  );
-}
-
-function RecapDrawer() {
-  const { final } = useStore();
-  if (!final) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
-      <details className="group pointer-events-auto">
-        <summary
-          className="cursor-pointer list-none px-4 py-2 text-center label text-cream/80 hover:text-cream"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(14,7,3,0.95) 30%, transparent)",
-          }}
-        >
-          ↑ RECAP DES {final.history.length} MANCHES ↑
-        </summary>
-        <div
-          className="max-h-[55vh] overflow-y-auto no-scrollbar px-4 pt-2 pb-6"
-          style={{ background: "rgba(14,7,3,0.98)" }}
-        >
-          <div className="mx-auto max-w-3xl grid gap-2">
-            {final.history.map((h, i) => {
-              const top = h.ranked[0];
-              if (!top || top.count === 0) {
-                return (
-                  <div
-                    key={i}
-                    className="border border-cream/15 rounded-md px-4 py-2 flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="label text-cream/55">
-                        Nº{String(i + 1).padStart(2, "0")}
-                      </div>
-                      <div className="font-serif-i text-base truncate text-cream/85">
-                        {h.question}
-                      </div>
-                    </div>
-                    <div className="label text-cream/45 shrink-0">NON-LIEU</div>
-                  </div>
-                );
-              }
-              return (
-                <div
-                  key={i}
-                  className="border border-cream/15 rounded-md px-4 py-2 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <div className="label text-cream/55">
-                      Nº{String(i + 1).padStart(2, "0")}
-                    </div>
-                    <div className="font-serif-i text-base truncate text-cream/85">
-                      {h.question}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-display text-gold-light text-lg">
-                      {top.pseudo}
-                    </div>
-                    <div className="label text-cream/45">
-                      {top.count} VOIX
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex gap-2 mt-1">
+            <Button variant="soft" size="sm" onClick={leave}>
+              Quitter
+            </Button>
+            {isHost && (
+              <Button size="sm" onClick={startGame}>
+                Rejouer →
+              </Button>
+            )}
           </div>
         </div>
-      </details>
+      </div>
     </div>
+  );
+}
+
+function BulletinCard({ b, isSelf }: { b: Bulletin; isSelf: boolean }) {
+  const groups = (
+    [
+      { tone: "warm" as Tone, title: `${TONE.warm.emoji} Ton bon côté`, entries: b.entries.filter((e) => e.tone === "warm") },
+      { tone: "spicy" as Tone, title: `${TONE.spicy.emoji} Ton côté piquant`, entries: b.entries.filter((e) => e.tone === "spicy") },
+      { tone: "fun" as Tone, title: `${TONE.fun.emoji} Pour rire`, entries: b.entries.filter((e) => e.tone === "fun") },
+    ]
+  ).filter((g) => g.entries.length > 0);
+
+  const headline = b.entries[0];
+
+  return (
+    <Card className="w-full p-7">
+      <div className="flex flex-col items-center text-center gap-2">
+        <Avatar pseudo={b.pseudo} colorKey={b.id} size={92} />
+        <div className="flex items-center gap-2">
+          {b.topCited && (
+            <span className="brand-gradient font-display label" style={{ fontSize: 11 }}>
+              ⭐ Le plus cité de la soirée
+            </span>
+          )}
+        </div>
+        {headline && (
+          <div className={`tone-${headline.tone} mt-1`}>
+            <div className="label text-ink-faint">Le groupe te voit surtout comme</div>
+            <div className="font-display tone-text leading-snug" style={{ fontSize: "clamp(18px,3.4vmin,24px)" }}>
+              {headline.text}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {b.entries.length === 0 ? (
+        <div className="mt-6 text-center font-display text-ink-soft">
+          Le groupe est resté discret avec {isSelf ? "toi" : b.pseudo} 🤫
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-col gap-4">
+          {groups.map((g) => (
+            <div key={g.tone} className={`tone-${g.tone}`}>
+              <div className="label text-ink-soft mb-2">{g.title}</div>
+              <div className="flex flex-col gap-1.5">
+                {g.entries.map((e, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5"
+                    style={{ background: "#FFF1E9" }}
+                  >
+                    <span className="font-body text-sm text-ink leading-tight">{e.text}</span>
+                    <span className="tone-gradient shrink-0 grid place-items-center rounded-full px-2.5 h-7 text-white font-display text-sm">
+                      ×{e.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }

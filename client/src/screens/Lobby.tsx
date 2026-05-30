@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { useStore } from "../store";
-import { Table } from "../components/Table";
-import { Seats } from "../components/Seats";
-import { CenterCard } from "../components/CenterCard";
+import { PlayerGrid } from "../components/PlayerGrid";
+import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 
 export function Lobby() {
@@ -24,67 +22,48 @@ export function Lobby() {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      {/* Floating leave button */}
+    <div className="relative h-full w-full overflow-y-auto no-scrollbar">
       <button
         onClick={leave}
-        className="fixed top-5 left-5 z-40 label text-cream/55 hover:text-cream"
+        className="fixed top-5 left-5 z-40 label text-ink-soft hover:text-ink transition-colors"
       >
-        ← QUITTER
+        ← Quitter
       </button>
 
-      <div className="absolute inset-0 grid place-items-center px-3 py-6">
-        <Table>
-          <Seats players={lobby.players} selfId={selfId} />
-          <CenterCard widthRatio={0.62}>
-            <div className="label text-ink/55">CODE DE LA TABLE</div>
+      <div className="min-h-full grid place-items-center px-5 py-16">
+        <div className="w-full max-w-2xl flex flex-col items-center gap-7">
+          <Card className="w-full p-7 text-center">
+            <div className="label text-ink-soft">Code de la partie</div>
             <div
-              className="font-display leading-[0.85] tracking-tight mt-1"
-              style={{
-                fontSize: "clamp(56px, 12vmin, 130px)",
-                color: "var(--ruby-dark)",
-              }}
+              className="font-display brand-gradient leading-none mt-1"
+              style={{ fontSize: "clamp(64px, 16vmin, 140px)", letterSpacing: "0.05em" }}
             >
               {lobby.code}
             </div>
-            <div className="label text-ink/55 mt-2">
-              {lobby.players.length} JOUEUR{lobby.players.length > 1 ? "S" : ""} /
-              3 MIN
+            <div className="label text-ink-faint mt-2">
+              {lobby.players.length} joueur{lobby.players.length > 1 ? "s" : ""} · 3 minimum pour lancer
             </div>
 
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button variant="ghost" size="sm" onClick={copyLink}>
-                {copied ? "✓ COPIÉ" : "COPIER LE LIEN"}
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Button variant="soft" size="sm" onClick={copyLink}>
+                {copied ? "✓ Lien copié" : "Copier le lien"}
               </Button>
               {isHost && (
-                <Button
-                  variant="gold"
-                  size="sm"
-                  disabled={!canStart}
-                  onClick={startGame}
-                >
-                  {canStart
-                    ? "OUVRIR LE BAL →"
-                    : `${3 - lobby.players.length} EN MOINS`}
+                <Button size="sm" disabled={!canStart} onClick={startGame}>
+                  {canStart ? "Lancer la partie →" : `${3 - lobby.players.length} joueur(s) en plus`}
                 </Button>
               )}
+              {!isHost && <span className="label text-ink-faint self-center">En attente de l'hôte…</span>}
             </div>
 
-            {/* Host settings */}
             {isHost && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-5 border-t border-dashed border-ink/20 pt-4"
-              >
-                <div className="label text-ink/55 mb-2">RÈGLES DE TABLE</div>
-                <div className="flex flex-wrap justify-center gap-2">
+              <div className="mt-6 border-t border-[#F3E7DD] pt-5">
+                <div className="label text-ink-soft mb-3">Réglages</div>
+                <div className="flex flex-wrap justify-center gap-1.5">
                   <Pip
                     active={lobby.settings.anonymous}
-                    onClick={() =>
-                      updateSettings({ anonymous: !lobby.settings.anonymous })
-                    }
-                    label="ANON"
+                    onClick={() => updateSettings({ anonymous: !lobby.settings.anonymous })}
+                    label={lobby.settings.anonymous ? "Anonyme" : "Visibles"}
                   />
                   {[5, 10, 15].map((v) => (
                     <Pip
@@ -99,42 +78,31 @@ export function Lobby() {
                       key={`q${v}`}
                       active={lobby.settings.questionCount === v}
                       onClick={() => updateSettings({ questionCount: v })}
-                      label={`${v}M`}
+                      label={`${v} manches`}
                     />
                   ))}
                 </div>
-              </motion.div>
-            )}
-
-            {!isHost && (
-              <div className="label text-ink/50 mt-4">
-                EN ATTENTE DE L'HÔTE
               </div>
             )}
-          </CenterCard>
-        </Table>
+          </Card>
+
+          <PlayerGrid players={lobby.players} selfId={selfId} />
+        </div>
       </div>
     </div>
   );
 }
 
-function Pip({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
+function Pip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      className={`font-display tracking-wider text-[10px] h-7 px-3 rounded-full border transition-all ${
+      className={`pill h-9 px-4 text-sm transition-all ${active ? "text-white" : "text-ink-soft hover:text-ink"}`}
+      style={
         active
-          ? "bg-wood-900 text-cream border-wood-900"
-          : "bg-transparent text-ink/65 border-ink/30 hover:border-ink"
-      }`}
+          ? { background: "linear-gradient(135deg,#FF5E8A,#FF9F43)", boxShadow: "0 6px 16px -6px rgba(255,94,138,0.6)" }
+          : { background: "rgba(255,94,138,0.1)" }
+      }
     >
       {label}
     </button>
