@@ -20,6 +20,15 @@ export interface LobbySettings {
   revealDuration: number;
   questionCount: number;
   allowSelfVote: boolean;
+  categories: string[]; // [] = toutes
+}
+
+export interface CategoryMeta {
+  id: string;
+  name: string;
+  emoji: string;
+  tone: "warm" | "spicy" | "fun";
+  count: number;
 }
 
 export interface Lobby {

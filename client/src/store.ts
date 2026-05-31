@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
-import type { FinalData, Lobby, RevealData } from "./types";
+import type { CategoryMeta, FinalData, Lobby, RevealData } from "./types";
 
 interface State {
   socket: Socket | null;
@@ -10,9 +10,11 @@ interface State {
   reveal: RevealData | null;
   final: FinalData | null;
   errorMsg: string | null;
+  categories: CategoryMeta[];
   view: "home" | "create" | "join" | "lobby" | "game" | "final";
 
   connect: () => Socket;
+  loadCategories: () => Promise<void>;
   setPseudo: (p: string) => void;
   setView: (v: State["view"]) => void;
   setError: (m: string | null) => void;
@@ -21,6 +23,7 @@ interface State {
     voteDuration: number;
     questionCount: number;
     allowSelfVote: boolean;
+    categories: string[];
   }) => Promise<{ ok: boolean; error?: string }>;
   joinLobby: (code: string) => Promise<{ ok: boolean; error?: string }>;
   leave: () => void;
@@ -35,6 +38,7 @@ interface State {
     voteDuration: number;
     questionCount: number;
     allowSelfVote: boolean;
+    categories: string[];
   }>) => void;
 }
 
@@ -46,7 +50,15 @@ export const useStore = create<State>((set, get) => ({
   reveal: null,
   final: null,
   errorMsg: null,
+  categories: [],
   view: "home",
+
+  loadCategories: async () => {
+    try {
+      const res = await fetch("/api/categories");
+      if (res.ok) set({ categories: await res.json() });
+    } catch {}
+  },
 
   connect: () => {
     let socket = get().socket;

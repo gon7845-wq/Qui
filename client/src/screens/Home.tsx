@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "../store";
 import { Button } from "../components/Button";
 import { Brand } from "../components/Brand";
 import { Card } from "../components/Card";
+import { CategoryPicker } from "../components/CategoryPicker";
 
 interface Props {
   prefilledCode?: string | null;
 }
 
 export function Home({ prefilledCode }: Props) {
-  const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError } = useStore();
+  const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError, categories } = useStore();
   const [stage, setStage] = useState<"idle" | "host" | "guest" | "config">(
     prefilledCode ? "guest" : "idle"
   );
@@ -21,13 +22,38 @@ export function Home({ prefilledCode }: Props) {
   const [voteDuration, setVoteDuration] = useState(10);
   const [questionCount, setQuestionCount] = useState(8);
   const [allowSelfVote, setAllowSelfVote] = useState(true);
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+
+  // Tout sélectionné par défaut dès que les catégories arrivent
+  useEffect(() => {
+    if (categories.length && selectedCats.size === 0) {
+      setSelectedCats(new Set(categories.map((c) => c.id)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories]);
+
+  const availableQuestions = useMemo(
+    () => categories.filter((c) => selectedCats.has(c.id)).reduce((s, c) => s + c.count, 0),
+    [categories, selectedCats]
+  );
+
+  function toggleCat(id: string) {
+    setSelectedCats((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   const canSubmitPseudo = pseudo.trim().length >= 1 && !busy;
+  const canCreate = canSubmitPseudo && selectedCats.size > 0;
 
   async function handleCreate() {
-    if (!canSubmitPseudo) return;
+    if (!canCreate) return;
     setBusy(true);
-    const r = await createLobby({ anonymous, voteDuration, questionCount, allowSelfVote });
+    // si tout est sélectionné, on envoie [] (= toutes)
+    const cats = selectedCats.size === categories.length ? [] : [...selectedCats];
+    const r = await createLobby({ anonymous, voteDuration, questionCount, allowSelfVote, categories: cats });
     setBusy(false);
     if (!r.ok) setError(r.error ?? "Erreur");
   }
@@ -102,9 +128,24 @@ export function Home({ prefilledCode }: Props) {
                     <Pip active={!allowSelfVote} onClick={() => setAllowSelfVote(false)} label="Interdit" />
                   </Pair>
                 </div>
+
+                <div className="mt-5 border-t border-[#F3E7DD] pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="label text-ink-soft">Catégories</span>
+                    <span className="label text-ink-faint">{availableQuestions} questions</span>
+                  </div>
+                  <CategoryPicker
+                    categories={categories}
+                    selected={selectedCats}
+                    onToggle={toggleCat}
+                    onAll={() => setSelectedCats(new Set(categories.map((c) => c.id)))}
+                    onNone={() => setSelectedCats(new Set())}
+                  />
+                </div>
+
                 <div className="mt-6">
-                  <Button fullWidth disabled={!canSubmitPseudo} onClick={handleCreate}>
-                    {busy ? "Création…" : "C'est parti →"}
+                  <Button fullWidth disabled={!canCreate} onClick={handleCreate}>
+                    {busy ? "Création…" : selectedCats.size === 0 ? "Choisis une catégorie" : "C'est parti →"}
                   </Button>
                 </div>
               </Card>

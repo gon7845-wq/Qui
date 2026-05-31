@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import {
   pickQuestions,
   enabledCount,
+  getCategories,
   getData,
   addCategory,
   updateCategory,
@@ -51,6 +52,9 @@ function handle(fn) {
     }
   };
 }
+
+// Liste publique des catégories (pour le choix à la création de partie)
+app.get("/api/categories", (_req, res) => res.json(getCategories()));
 
 app.post("/api/admin/login", (req, res) => {
   if (req.body?.password === ADMIN_PASSWORD) return res.json({ ok: true });
@@ -98,6 +102,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
       revealDuration: 9,
       questionCount: clamp(settings?.questionCount ?? 8, 3, 20),
       allowSelfVote: settings?.allowSelfVote !== false, // défaut: autorisé
+      categories: sanitizeCategories(settings?.categories), // [] = toutes
     },
     players: [
       {
@@ -141,6 +146,11 @@ function sanitizePseudo(p) {
 function sanitizeAvatar(a) {
   // garde au plus 4 "caractères" (un emoji peut être multi-codepoint)
   return Array.from(String(a ?? "")).slice(0, 4).join("");
+}
+
+function sanitizeCategories(c) {
+  // [] = toutes les catégories
+  return Array.isArray(c) ? c.filter((x) => typeof x === "string").slice(0, 50) : [];
 }
 
 function publicLobby(lobby) {
@@ -337,6 +347,7 @@ io.on("connection", (socket) => {
       ...(s.voteDuration !== undefined ? { voteDuration: clamp(s.voteDuration, 3, 30) } : {}),
       ...(s.questionCount !== undefined ? { questionCount: clamp(s.questionCount, 3, 20) } : {}),
       ...(s.allowSelfVote !== undefined ? { allowSelfVote: !!s.allowSelfVote } : {}),
+      ...(s.categories !== undefined ? { categories: sanitizeCategories(s.categories) } : {}),
     };
     broadcast(lobby);
   });
@@ -360,15 +371,15 @@ io.on("connection", (socket) => {
       io.to(socket.id).emit("error:msg", { message: "Il faut au moins 3 joueurs" });
       return;
     }
-    if (enabledCount() < 1) {
-      io.to(socket.id).emit("error:msg", { message: "Aucune question active (voir l'admin)" });
+    if (enabledCount(lobby.settings.categories) < 1) {
+      io.to(socket.id).emit("error:msg", { message: "Aucune question dans les catégories choisies" });
       return;
     }
     // reset scores if restart
     for (const p of lobby.players) p.score = 0;
     lobby.history = [];
     lobby.currentRound = 0;
-    lobby.questions = pickQuestions(lobby.settings.questionCount);
+    lobby.questions = pickQuestions(lobby.settings.questionCount, lobby.settings.categories);
     startRound(lobby);
   });
 

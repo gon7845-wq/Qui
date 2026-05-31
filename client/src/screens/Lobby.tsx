@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import { PlayerGrid } from "../components/PlayerGrid";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { CategoryPicker } from "../components/CategoryPicker";
 
 const AVATAR_KEY = "qui_avatar";
 const EMOJIS = [
@@ -12,7 +13,7 @@ const EMOJIS = [
 ];
 
 export function Lobby() {
-  const { lobby, selfId, leave, startGame, updateSettings, setAvatar } = useStore();
+  const { lobby, selfId, leave, startGame, updateSettings, setAvatar, categories } = useStore();
   const [copied, setCopied] = useState(false);
 
   const self = lobby?.players.find((p) => p.id === selfId);
@@ -35,6 +36,19 @@ export function Lobby() {
   const isHost = lobby.hostId === selfId;
   const canStart = lobby.players.length >= 3;
   const shareUrl = `${window.location.origin}/r/${lobby.code}`;
+
+  const allCatIds = categories.map((c) => c.id);
+  const selCats = (lobby.settings.categories ?? []).length
+    ? new Set(lobby.settings.categories)
+    : new Set(allCatIds);
+  const availableQuestions = categories.filter((c) => selCats.has(c.id)).reduce((s, c) => s + c.count, 0);
+
+  function toggleCat(id: string) {
+    const next = new Set(selCats);
+    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.size === 0) return; // garder au moins une catégorie
+    updateSettings({ categories: next.size === allCatIds.length ? [] : [...next] });
+  }
 
   async function copyLink() {
     try {
@@ -101,6 +115,19 @@ export function Lobby() {
                     <Pip active={lobby.settings.allowSelfVote !== false} onClick={() => updateSettings({ allowSelfVote: true })} label="Autorisé" />
                     <Pip active={lobby.settings.allowSelfVote === false} onClick={() => updateSettings({ allowSelfVote: false })} label="Interdit" />
                   </Pair>
+                </div>
+
+                <div className="mt-4 border-t border-[#F3E7DD] pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="label text-ink-soft">Catégories</span>
+                    <span className="label text-ink-faint">{availableQuestions} questions</span>
+                  </div>
+                  <CategoryPicker
+                    categories={categories}
+                    selected={selCats}
+                    onToggle={toggleCat}
+                    onAll={() => updateSettings({ categories: [] })}
+                  />
                 </div>
               </div>
             )}

@@ -143,11 +143,20 @@ export function getData() {
   };
 }
 
-// ─── Game picker (enabled questions only) ───
-export function pickQuestions(count) {
+// Liste publique des catégories avec leur nombre de questions actives.
+export function getCategories() {
   const d = ensureLoaded();
+  const counts = {};
+  for (const q of d.questions) if (q.enabled && clean(q.text)) counts[q.categoryId] = (counts[q.categoryId] || 0) + 1;
+  return d.categories.map((c) => ({ id: c.id, name: c.name, emoji: c.emoji, tone: c.tone, count: counts[c.id] || 0 }));
+}
+
+// ─── Game picker (enabled questions only, optionnellement filtré par catégories) ───
+export function pickQuestions(count, categoryIds) {
+  const d = ensureLoaded();
+  const set = Array.isArray(categoryIds) && categoryIds.length ? new Set(categoryIds) : null;
   const pool = d.questions
-    .filter((q) => q.enabled && clean(q.text))
+    .filter((q) => q.enabled && clean(q.text) && (!set || set.has(q.categoryId)))
     .map((q) => ({ text: q.text, tone: toneOf(q.categoryId) }));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -156,8 +165,11 @@ export function pickQuestions(count) {
   return pool.slice(0, Math.min(count, pool.length));
 }
 
-export function enabledCount() {
-  return ensureLoaded().questions.filter((q) => q.enabled && clean(q.text)).length;
+export function enabledCount(categoryIds) {
+  const set = Array.isArray(categoryIds) && categoryIds.length ? new Set(categoryIds) : null;
+  return ensureLoaded().questions.filter(
+    (q) => q.enabled && clean(q.text) && (!set || set.has(q.categoryId))
+  ).length;
 }
 
 // ─── Categories CRUD ───

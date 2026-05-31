@@ -8,7 +8,7 @@ import { Final } from "./screens/Final";
 import { Admin } from "./screens/Admin";
 
 export default function App() {
-  const { view, connect } = useStore();
+  const { view, connect, loadCategories } = useStore();
 
   const isAdmin = window.location.pathname.startsWith("/admin");
 
@@ -18,8 +18,11 @@ export default function App() {
   })();
 
   useEffect(() => {
-    if (!isAdmin) connect();
-  }, [connect, isAdmin]);
+    if (!isAdmin) {
+      connect();
+      loadCategories();
+    }
+  }, [connect, loadCategories, isAdmin]);
 
   return (
     <div className="relative h-full w-full">
