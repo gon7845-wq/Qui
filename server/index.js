@@ -84,7 +84,47 @@ app.get(/^\/(?!socket\.io|api|healthz).*/, (_req, res) => {
 // ─── Game state (in-memory) ───
 const lobbies = new Map(); // code -> Lobby
 const playerLobby = new Map(); // socketId -> code
+const socketPid = new Map(); // socketId -> pid (identité stable du joueur)
 const makeCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 4);
+const makePid = customAlphabet("abcdefghijkmnpqrstuvwxyz23456789", 14);
+
+const GRACE_MS = 45000; // délai avant de virer un joueur déconnecté
+
+function bindSocket(socketId, code, pid) {
+  playerLobby.set(socketId, code);
+  socketPid.set(socketId, pid);
+}
+
+function ctx(socket) {
+  const code = playerLobby.get(socket.id);
+  const lobby = code ? lobbies.get(code) : null;
+  const pid = socketPid.get(socket.id);
+  const player = lobby && pid ? lobby.players.find((p) => p.id === pid) : null;
+  return { code, lobby, pid, player };
+}
+
+function connectedCount(lobby) {
+  return lobby.players.filter((p) => p.connected).length;
+}
+
+function clearDisconnectTimer(lobby, pid) {
+  const t = lobby.disconnectTimers.get(pid);
+  if (t) {
+    clearTimeout(t);
+    lobby.disconnectTimers.delete(pid);
+  }
+}
+
+function scheduleDisconnect(lobby, pid) {
+  clearDisconnectTimer(lobby, pid);
+  lobby.disconnectTimers.set(
+    pid,
+    setTimeout(() => {
+      lobby.disconnectTimers.delete(pid);
+      removePlayer(lobby, pid);
+    }, GRACE_MS)
+  );
+}
 
 function createLobby(hostSocketId, hostPseudo, settings) {
   let code;
@@ -92,9 +132,10 @@ function createLobby(hostSocketId, hostPseudo, settings) {
     code = makeCode();
   } while (lobbies.has(code));
 
+  const hostPid = makePid();
   const lobby = {
     code,
-    hostId: hostSocketId,
+    hostId: hostPid,
     state: "waiting", // waiting | question | reveal | ended
     settings: {
       anonymous: !!settings?.anonymous,
@@ -106,7 +147,8 @@ function createLobby(hostSocketId, hostPseudo, settings) {
     },
     players: [
       {
-        id: hostSocketId,
+        id: hostPid,
+        socketId: hostSocketId,
         pseudo: sanitizePseudo(hostPseudo),
         isHost: true,
         score: 0,
@@ -120,14 +162,17 @@ function createLobby(hostSocketId, hostPseudo, settings) {
     roundStartTime: null,
     roundEndTime: null,
     revealEndTime: null,
-    votes: {}, // voterId -> targetId (current round)
-    history: [], // [{question, votes:{voterId:targetId}, ranked:[{id,pseudo,count}]}]
+    votes: {}, // voterPid -> targetPid (current round)
+    history: [], // [{question, votes:{voterPid:targetPid}, ranked:[{id,pseudo,count}]}]
     roundTimer: null,
     paused: false,
     pauseRemaining: 0,
+    disconnectTimers: new Map(), // pid -> timeout
+    lastReveal: null,
+    lastFinal: null,
   };
   lobbies.set(code, lobby);
-  playerLobby.set(hostSocketId, code);
+  bindSocket(hostSocketId, code, hostPid);
   return lobby;
 }
 
@@ -235,15 +280,17 @@ function endRound(lobby) {
   const now = Date.now();
   lobby.revealEndTime = now + lobby.settings.revealDuration * 1000;
 
-  io.to(lobby.code).emit("game:reveal", {
+  const revealPayload = {
     question: lobby.currentQuestion,
     ranked,
-    votes: lobby.settings.anonymous ? null : lobby.votes,
+    votes: lobby.settings.anonymous ? null : { ...lobby.votes },
     anonymous: lobby.settings.anonymous,
     revealEndTime: lobby.revealEndTime,
     round: lobby.currentRound,
     totalRounds: lobby.questions.length,
-  });
+  };
+  lobby.lastReveal = revealPayload;
+  io.to(lobby.code).emit("game:reveal", revealPayload);
   broadcast(lobby);
 
   lobby.roundTimer = setTimeout(() => {
@@ -263,39 +310,41 @@ function endGame(lobby) {
     .map((p) => ({ id: p.id, pseudo: p.pseudo, score: p.score }))
     .sort((a, b) => b.score - a.score);
 
-  io.to(lobby.code).emit("game:end", {
-    finalRanking,
-    history: lobby.history,
-  });
+  lobby.lastFinal = { finalRanking, history: lobby.history };
+  io.to(lobby.code).emit("game:end", lobby.lastFinal);
   broadcast(lobby);
 }
 
-function removePlayer(lobby, socketId) {
-  const wasHost = lobby.hostId === socketId;
-  lobby.players = lobby.players.filter((p) => p.id !== socketId);
-  delete lobby.votes[socketId];
+function removePlayer(lobby, pid) {
+  const wasHost = lobby.hostId === pid;
+  clearDisconnectTimer(lobby, pid);
+  lobby.players = lobby.players.filter((p) => p.id !== pid);
+  delete lobby.votes[pid];
 
   if (lobby.players.length === 0) {
     clearRoundTimer(lobby);
+    for (const t of lobby.disconnectTimers.values()) clearTimeout(t);
+    lobby.disconnectTimers.clear();
     lobbies.delete(lobby.code);
     return;
   }
   if (wasHost) {
-    lobby.hostId = lobby.players[0].id;
-    lobby.players[0].isHost = true;
+    const newHost = lobby.players.find((p) => p.connected) || lobby.players[0];
+    lobby.hostId = newHost.id;
+    newHost.isHost = true;
   }
-  // if mid-game and not enough players, end
+  // partie en cours et plus assez de joueurs → fin
   if (lobby.state !== "waiting" && lobby.state !== "ended" && lobby.players.length < 2) {
     endGame(lobby);
     return;
   }
-  // if everyone left has voted, end round early
+  // si tous les joueurs connectés ont voté, on conclut la manche
   if (lobby.state === "question") {
     const activeIds = new Set(lobby.players.map((p) => p.id));
     for (const k of Object.keys(lobby.votes)) {
       if (!activeIds.has(k)) delete lobby.votes[k];
     }
-    if (Object.keys(lobby.votes).length >= lobby.players.length) {
+    if (Object.keys(lobby.votes).length >= connectedCount(lobby) && connectedCount(lobby) > 0) {
       endRound(lobby);
       return;
     }
@@ -309,7 +358,7 @@ io.on("connection", (socket) => {
     try {
       const lobby = createLobby(socket.id, pseudo, settings);
       socket.join(lobby.code);
-      cb?.({ ok: true, code: lobby.code, lobby: publicLobby(lobby), selfId: socket.id });
+      cb?.({ ok: true, code: lobby.code, lobby: publicLobby(lobby), selfId: lobby.hostId });
     } catch (e) {
       cb?.({ ok: false, error: e.message || "Erreur création" });
     }
@@ -321,8 +370,10 @@ io.on("connection", (socket) => {
     if (!lobby) return cb?.({ ok: false, error: "Lobby introuvable" });
     if (lobby.state !== "waiting") return cb?.({ ok: false, error: "Partie déjà en cours" });
     if (lobby.players.length >= 12) return cb?.({ ok: false, error: "Lobby plein" });
+    const pid = makePid();
     const p = {
-      id: socket.id,
+      id: pid,
+      socketId: socket.id,
       pseudo: sanitizePseudo(pseudo),
       isHost: false,
       score: 0,
@@ -330,16 +381,38 @@ io.on("connection", (socket) => {
       avatar: "",
     };
     lobby.players.push(p);
-    playerLobby.set(socket.id, lobby.code);
+    bindSocket(socket.id, lobby.code, pid);
     socket.join(lobby.code);
-    cb?.({ ok: true, code: lobby.code, lobby: publicLobby(lobby), selfId: socket.id });
+    cb?.({ ok: true, code: lobby.code, lobby: publicLobby(lobby), selfId: pid });
+    broadcast(lobby);
+  });
+
+  // Reprise après refresh / coupure réseau
+  socket.on("lobby:rejoin", ({ code, pid }, cb) => {
+    const c = String(code || "").toUpperCase().trim();
+    const lobby = lobbies.get(c);
+    if (!lobby) return cb?.({ ok: false });
+    const player = lobby.players.find((p) => p.id === pid);
+    if (!player) return cb?.({ ok: false });
+    player.socketId = socket.id;
+    player.connected = true;
+    bindSocket(socket.id, c, pid);
+    socket.join(c);
+    clearDisconnectTimer(lobby, pid);
+    cb?.({
+      ok: true,
+      code: c,
+      lobby: publicLobby(lobby),
+      selfId: pid,
+      reveal: lobby.state === "reveal" ? lobby.lastReveal : null,
+      final: lobby.state === "ended" ? lobby.lastFinal : null,
+    });
     broadcast(lobby);
   });
 
   socket.on("lobby:settings", ({ settings }) => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.hostId !== socket.id || lobby.state !== "waiting") return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid || lobby.state !== "waiting") return;
     const s = settings || {};
     lobby.settings = {
       ...lobby.settings,
@@ -353,19 +426,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("lobby:avatar", ({ avatar }) => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby) return;
-    const p = lobby.players.find((x) => x.id === socket.id);
-    if (!p) return;
-    p.avatar = sanitizeAvatar(avatar);
+    const { lobby, player } = ctx(socket);
+    if (!lobby || !player) return;
+    player.avatar = sanitizeAvatar(avatar);
     broadcast(lobby);
   });
 
   socket.on("game:start", () => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.hostId !== socket.id) return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid) return;
     if (lobby.state !== "waiting" && lobby.state !== "ended") return;
     if (lobby.players.length < 3) {
       io.to(socket.id).emit("error:msg", { message: "Il faut au moins 3 joueurs" });
@@ -384,22 +453,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("game:vote", ({ targetId }) => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.state !== "question") return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || !pid || lobby.state !== "question") return;
     if (!lobby.players.find((p) => p.id === targetId)) return;
-    if (!lobby.settings.allowSelfVote && targetId === socket.id) return;
-    lobby.votes[socket.id] = targetId;
+    if (!lobby.settings.allowSelfVote && targetId === pid) return;
+    lobby.votes[pid] = targetId;
     broadcast(lobby);
-    if (!lobby.paused && Object.keys(lobby.votes).length >= lobby.players.length) {
+    if (!lobby.paused && Object.keys(lobby.votes).length >= connectedCount(lobby)) {
       endRound(lobby);
     }
   });
 
   socket.on("game:pause", () => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.hostId !== socket.id || lobby.paused) return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid || lobby.paused) return;
     if (lobby.state !== "question" && lobby.state !== "reveal") return;
     const now = Date.now();
     const endTime = lobby.state === "question" ? lobby.roundEndTime : lobby.revealEndTime;
@@ -410,9 +477,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("game:resume", () => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.hostId !== socket.id || !lobby.paused) return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid || !lobby.paused) return;
     const remaining = lobby.pauseRemaining || 1000;
     const now = Date.now();
     lobby.paused = false;
@@ -430,9 +496,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("game:next", () => {
-    const code = playerLobby.get(socket.id);
-    const lobby = code && lobbies.get(code);
-    if (!lobby || lobby.hostId !== socket.id) return;
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid) return;
     if (lobby.state !== "reveal") return;
     clearRoundTimer(lobby);
     if (lobby.currentRound >= lobby.questions.length) {
@@ -443,20 +508,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("lobby:leave", () => {
-    const code = playerLobby.get(socket.id);
+    const { code, lobby, pid } = ctx(socket);
     playerLobby.delete(socket.id);
-    if (!code) return;
-    const lobby = lobbies.get(code);
-    socket.leave(code);
-    if (lobby) removePlayer(lobby, socket.id);
+    socketPid.delete(socket.id);
+    if (code) socket.leave(code);
+    if (lobby && pid) removePlayer(lobby, pid); // départ explicite = immédiat
   });
 
   socket.on("disconnect", () => {
-    const code = playerLobby.get(socket.id);
+    const { lobby, pid, player } = ctx(socket);
     playerLobby.delete(socket.id);
-    if (!code) return;
-    const lobby = lobbies.get(code);
-    if (lobby) removePlayer(lobby, socket.id);
+    socketPid.delete(socket.id);
+    if (!lobby || !pid || !player) return;
+    // ignore si le joueur s'est déjà reconnecté sur un autre socket
+    if (player.socketId !== socket.id) return;
+    player.connected = false;
+    broadcast(lobby);
+    scheduleDisconnect(lobby, pid); // grâce avant retrait définitif
   });
 });
 

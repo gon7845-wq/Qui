@@ -2,6 +2,26 @@ import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import type { CategoryMeta, FinalData, Lobby, RevealData } from "./types";
 
+const SESSION_KEY = "qui_session";
+function saveSession(code: string, pid: string) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ code, pid }));
+  } catch {}
+}
+function readSession(): { code: string; pid: string } | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    return o && o.code && o.pid ? o : null;
+  } catch {
+    return null;
+  }
+}
+function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
+
 interface State {
   socket: Socket | null;
   selfId: string | null;
@@ -86,8 +106,34 @@ export const useStore = create<State>((set, get) => ({
       set({ errorMsg: message });
       setTimeout(() => set({ errorMsg: null }), 3000);
     });
+    // À chaque (re)connexion, on tente de reprendre la partie en cours
     socket.on("connect", () => {
-      set({ selfId: socket!.id ?? null });
+      const sess = readSession();
+      if (!sess) return;
+      // si l'URL pointe vers un autre lobby, on ne reprend pas l'ancien
+      const m = window.location.pathname.match(/^\/r\/([A-Z0-9]{4})/i);
+      const pathCode = m ? m[1].toUpperCase() : null;
+      if (pathCode && pathCode !== sess.code) return;
+      socket!.emit("lobby:rejoin", sess, (res: any) => {
+        if (res?.ok) {
+          const view =
+            res.lobby.state === "ended"
+              ? "final"
+              : res.lobby.state === "waiting"
+              ? "lobby"
+              : "game";
+          set({
+            lobby: res.lobby,
+            selfId: res.selfId,
+            reveal: res.reveal || null,
+            final: res.final || null,
+            view,
+          });
+          if (res.code) window.history.replaceState(null, "", `/r/${res.code}`);
+        } else {
+          clearSession();
+        }
+      });
     });
     set({ socket });
     return socket;
@@ -110,6 +156,7 @@ export const useStore = create<State>((set, get) => ({
               selfId: res.selfId,
               view: "lobby",
             });
+            saveSession(res.code, res.selfId);
             window.history.replaceState(null, "", `/r/${res.code}`);
             resolve({ ok: true });
           } else {
@@ -132,6 +179,7 @@ export const useStore = create<State>((set, get) => ({
               selfId: res.selfId,
               view: "lobby",
             });
+            saveSession(res.code, res.selfId);
             window.history.replaceState(null, "", `/r/${res.code}`);
             resolve({ ok: true });
           } else {
@@ -144,6 +192,7 @@ export const useStore = create<State>((set, get) => ({
   leave: () => {
     const s = get().socket;
     s?.emit("lobby:leave");
+    clearSession();
     set({ lobby: null, reveal: null, final: null, view: "home" });
     window.history.replaceState(null, "", "/");
   },
