@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import { customAlphabet } from "nanoid";
 import path from "path";
 import { fileURLToPath } from "url";
+import { initDb } from "./db.js";
 import {
   pickQuestions,
   enabledCount,
@@ -43,9 +44,9 @@ function adminAuth(req, res, next) {
 }
 
 function handle(fn) {
-  return (req, res) => {
+  return async (req, res) => {
     try {
-      const result = fn(req);
+      const result = await fn(req);
       res.json(result ?? { ok: true });
     } catch (e) {
       res.status(400).json({ error: e.message || "Erreur" });
@@ -54,7 +55,13 @@ function handle(fn) {
 }
 
 // Liste publique des catégories (pour le choix à la création de partie)
-app.get("/api/categories", (_req, res) => res.json(getCategories()));
+app.get("/api/categories", async (_req, res) => {
+  try {
+    res.json(await getCategories());
+  } catch {
+    res.status(500).json({ error: "Erreur" });
+  }
+});
 
 app.post("/api/admin/login", (req, res) => {
   if (req.body?.password === ADMIN_PASSWORD) return res.json({ ok: true });
@@ -432,7 +439,7 @@ io.on("connection", (socket) => {
     broadcast(lobby);
   });
 
-  socket.on("game:start", () => {
+  socket.on("game:start", async () => {
     const { lobby, pid } = ctx(socket);
     if (!lobby || lobby.hostId !== pid) return;
     if (lobby.state !== "waiting" && lobby.state !== "ended") return;
@@ -440,16 +447,22 @@ io.on("connection", (socket) => {
       io.to(socket.id).emit("error:msg", { message: "Il faut au moins 3 joueurs" });
       return;
     }
-    if (enabledCount(lobby.settings.categories) < 1) {
-      io.to(socket.id).emit("error:msg", { message: "Aucune question dans les catégories choisies" });
-      return;
+    try {
+      if ((await enabledCount(lobby.settings.categories)) < 1) {
+        io.to(socket.id).emit("error:msg", { message: "Aucune question dans les catégories choisies" });
+        return;
+      }
+      const questions = await pickQuestions(lobby.settings.questionCount, lobby.settings.categories);
+      // garde-fou si l'état a changé pendant l'await
+      if (lobby.state !== "waiting" && lobby.state !== "ended") return;
+      for (const p of lobby.players) p.score = 0;
+      lobby.history = [];
+      lobby.currentRound = 0;
+      lobby.questions = questions;
+      startRound(lobby);
+    } catch (e) {
+      io.to(socket.id).emit("error:msg", { message: "Erreur de chargement des questions" });
     }
-    // reset scores if restart
-    for (const p of lobby.players) p.score = 0;
-    lobby.history = [];
-    lobby.currentRound = 0;
-    lobby.questions = pickQuestions(lobby.settings.questionCount, lobby.settings.categories);
-    startRound(lobby);
   });
 
   socket.on("game:vote", ({ targetId }) => {
@@ -529,6 +542,13 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`[Qui ?] Server listening on :${PORT}`);
-});
+initDb()
+  .then(() => {
+    httpServer.listen(PORT, () => {
+      console.log(`[Qui ?] Server listening on :${PORT}`);
+    });
+  })
+  .catch((e) => {
+    console.error("[db] Échec d'initialisation :", e.message);
+    process.exit(1);
+  });
