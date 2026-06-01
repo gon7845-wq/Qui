@@ -6,29 +6,36 @@ import { Lobby } from "./screens/Lobby";
 import { Game } from "./screens/Game";
 import { Final } from "./screens/Final";
 import { Admin } from "./screens/Admin";
+import { Member } from "./screens/Member";
 
 export default function App() {
-  const { view, connect, loadCategories } = useStore();
+  const { view, connect, loadCategories, loadMe } = useStore();
 
-  const isAdmin = window.location.pathname.startsWith("/admin");
+  const path = window.location.pathname;
+  const isAdmin = path.startsWith("/admin");
+  const isMember = path.startsWith("/moi");
 
   const initialCode = (() => {
-    const m = window.location.pathname.match(/^\/r\/([A-Z0-9]{4})/i);
+    const m = path.match(/^\/r\/([A-Z0-9]{4})/i);
     return m ? m[1].toUpperCase() : null;
   })();
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (isAdmin) return;
+    loadMe();
+    if (!isMember) {
       connect();
       loadCategories();
     }
-  }, [connect, loadCategories, isAdmin]);
+  }, [connect, loadCategories, loadMe, isAdmin, isMember]);
 
   return (
     <div className="relative h-full w-full">
       <Background />
       {isAdmin ? (
         <Admin />
+      ) : isMember ? (
+        <Member />
       ) : (
         <>
           {view === "home" && <Home prefilledCode={initialCode} />}

@@ -30,7 +30,7 @@ export function CategoryPicker({ categories, selected, onToggle, onAll, onNone }
                   : { background: "rgba(36,27,51,0.06)", color: "var(--ink-soft)" }
               }
             >
-              {c.emoji} {c.name} <span style={{ opacity: 0.7 }}>{c.count}</span>
+              {c.private ? "🔒 " : ""}{c.emoji} {c.name} <span style={{ opacity: 0.7 }}>{c.count}</span>
             </button>
           );
         })}

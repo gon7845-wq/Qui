@@ -4,11 +4,14 @@ import { Server } from "socket.io";
 import { customAlphabet } from "nanoid";
 import path from "path";
 import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
 import { initDb } from "./db.js";
+import { mountAuth, requireUser, userIdFromReq, userIdFromCookieHeader } from "./auth.js";
 import {
   pickQuestions,
   enabledCount,
   getCategories,
+  getGameCategories,
   getData,
   addCategory,
   updateCategory,
@@ -29,6 +32,23 @@ const io = new Server(httpServer, {
 });
 
 app.use(express.json({ limit: "512kb" }));
+app.use(cookieParser());
+
+// ─── Authentification (Google + lien magique) ───
+mountAuth(app);
+
+// ─── Espace membre : contenu privé (owner = utilisateur connecté) ───
+const me = express.Router();
+me.use(requireUser);
+me.get("/data", handle((req) => getData(req.uid)));
+me.post("/categories", handle((req) => addCategory(req.body || {}, req.uid)));
+me.put("/categories/:id", handle((req) => updateCategory(req.params.id, req.body || {}, req.uid)));
+me.delete("/categories/:id", handle((req) => deleteCategory(req.params.id, req.body?.reassignTo, req.uid)));
+me.post("/questions", handle((req) => addQuestion(req.body || {}, req.uid)));
+me.post("/questions/bulk", handle((req) => addQuestionsBulk(req.body?.texts || [], req.body?.categoryId, req.uid)));
+me.put("/questions/:id", handle((req) => updateQuestion(req.params.id, req.body || {}, req.uid)));
+me.delete("/questions/:id", handle((req) => deleteQuestion(req.params.id, req.uid)));
+app.use("/api/me", me);
 
 // ─── Admin API ───
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "qui-admin-2026";
@@ -54,10 +74,10 @@ function handle(fn) {
   };
 }
 
-// Liste publique des catégories (pour le choix à la création de partie)
-app.get("/api/categories", async (_req, res) => {
+// Catégories pour le choix à la création (globales + privées si connecté)
+app.get("/api/categories", async (req, res) => {
   try {
-    res.json(await getCategories());
+    res.json(await getGameCategories(userIdFromReq(req)));
   } catch {
     res.status(500).json({ error: "Erreur" });
   }
@@ -133,7 +153,7 @@ function scheduleDisconnect(lobby, pid) {
   );
 }
 
-function createLobby(hostSocketId, hostPseudo, settings) {
+function createLobby(hostSocketId, hostPseudo, settings, hostUserId) {
   let code;
   do {
     code = makeCode();
@@ -143,6 +163,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
   const lobby = {
     code,
     hostId: hostPid,
+    hostUserId: hostUserId || null,
     state: "waiting", // waiting | question | reveal | ended
     settings: {
       anonymous: !!settings?.anonymous,
@@ -156,6 +177,7 @@ function createLobby(hostSocketId, hostPseudo, settings) {
       {
         id: hostPid,
         socketId: hostSocketId,
+        userId: hostUserId || null,
         pseudo: sanitizePseudo(hostPseudo),
         isHost: true,
         score: 0,
@@ -361,9 +383,12 @@ function removePlayer(lobby, pid) {
 
 // ─── Socket handlers ───
 io.on("connection", (socket) => {
+  // identité du compte (si connecté) via le cookie de session du handshake
+  socket.data.userId = userIdFromCookieHeader(socket.handshake.headers.cookie);
+
   socket.on("lobby:create", ({ pseudo, settings }, cb) => {
     try {
-      const lobby = createLobby(socket.id, pseudo, settings);
+      const lobby = createLobby(socket.id, pseudo, settings, socket.data.userId);
       socket.join(lobby.code);
       cb?.({ ok: true, code: lobby.code, lobby: publicLobby(lobby), selfId: lobby.hostId });
     } catch (e) {
@@ -381,6 +406,7 @@ io.on("connection", (socket) => {
     const p = {
       id: pid,
       socketId: socket.id,
+      userId: socket.data.userId || null,
       pseudo: sanitizePseudo(pseudo),
       isHost: false,
       score: 0,
@@ -447,12 +473,14 @@ io.on("connection", (socket) => {
       io.to(socket.id).emit("error:msg", { message: "Il faut au moins 3 joueurs" });
       return;
     }
+    const host = lobby.players.find((p) => p.id === pid);
+    const ownerId = host?.userId || null; // inclut les questions privées de l'hôte
     try {
-      if ((await enabledCount(lobby.settings.categories)) < 1) {
+      if ((await enabledCount(lobby.settings.categories, ownerId)) < 1) {
         io.to(socket.id).emit("error:msg", { message: "Aucune question dans les catégories choisies" });
         return;
       }
-      const questions = await pickQuestions(lobby.settings.questionCount, lobby.settings.categories);
+      const questions = await pickQuestions(lobby.settings.questionCount, lobby.settings.categories, ownerId);
       // garde-fou si l'état a changé pendant l'await
       if (lobby.state !== "waiting" && lobby.state !== "ended") return;
       for (const p of lobby.players) p.score = 0;

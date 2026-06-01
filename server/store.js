@@ -12,18 +12,20 @@ function tone(t) {
   return TONES.includes(t) ? t : "fun";
 }
 
-// ─── Lecture admin (banque globale) ───
-export async function getData() {
+// ─── Lecture (banque globale si ownerId null, sinon contenu privé du membre) ───
+export async function getData(ownerId = null) {
   const cats = await q(
     `SELECT c.id, c.name, c.emoji, c.tone, COUNT(qu.id)::int AS count
      FROM categories c
-     LEFT JOIN questions qu ON qu.category_id = c.id AND qu.owner_id IS NULL
-     WHERE c.owner_id IS NULL
-     GROUP BY c.id ORDER BY c.created_at`
+     LEFT JOIN questions qu ON qu.category_id = c.id AND qu.owner_id IS NOT DISTINCT FROM $1
+     WHERE c.owner_id IS NOT DISTINCT FROM $1
+     GROUP BY c.id ORDER BY c.created_at`,
+    [ownerId]
   );
   const qs = await q(
     `SELECT id, text, category_id AS "categoryId", enabled
-     FROM questions WHERE owner_id IS NULL ORDER BY created_at DESC`
+     FROM questions WHERE owner_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC`,
+    [ownerId]
   );
   const toneById = Object.fromEntries(cats.rows.map((c) => [c.id, c.tone]));
   const stats = {
@@ -37,7 +39,7 @@ export async function getData() {
   return { categories: cats.rows, questions: qs.rows, stats };
 }
 
-// Liste publique des catégories (count = questions actives)
+// Catégories d'un scope (global si null, sinon celles du membre)
 export async function getCategories(ownerId = null) {
   const { rows } = await q(
     `SELECT c.id, c.name, c.emoji, c.tone,
@@ -46,6 +48,20 @@ export async function getCategories(ownerId = null) {
      LEFT JOIN questions qu ON qu.category_id = c.id
      WHERE c.owner_id IS NOT DISTINCT FROM $1
      GROUP BY c.id ORDER BY c.created_at`,
+    [ownerId]
+  );
+  return rows;
+}
+
+// Catégories utilisables en partie par un hôte : globales + ses privées
+export async function getGameCategories(ownerId = null) {
+  const { rows } = await q(
+    `SELECT c.id, c.name, c.emoji, c.tone, (c.owner_id IS NOT NULL) AS private,
+            COUNT(qu.id) FILTER (WHERE qu.enabled)::int AS count
+     FROM categories c
+     LEFT JOIN questions qu ON qu.category_id = c.id
+     WHERE c.owner_id IS NULL OR c.owner_id = $1
+     GROUP BY c.id ORDER BY (c.owner_id IS NOT NULL), c.created_at`,
     [ownerId]
   );
   return rows;

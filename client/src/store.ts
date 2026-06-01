@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
-import type { CategoryMeta, FinalData, Lobby, RevealData } from "./types";
+import type { CategoryMeta, FinalData, Lobby, RevealData, User } from "./types";
 
 const SESSION_KEY = "qui_session";
 function saveSession(code: string, pid: string) {
@@ -31,10 +31,13 @@ interface State {
   final: FinalData | null;
   errorMsg: string | null;
   categories: CategoryMeta[];
+  user: User | null;
   view: "home" | "create" | "join" | "lobby" | "game" | "final";
 
   connect: () => Socket;
   loadCategories: () => Promise<void>;
+  loadMe: () => Promise<void>;
+  logout: () => Promise<void>;
   setPseudo: (p: string) => void;
   setView: (v: State["view"]) => void;
   setError: (m: string | null) => void;
@@ -71,6 +74,7 @@ export const useStore = create<State>((set, get) => ({
   final: null,
   errorMsg: null,
   categories: [],
+  user: null,
   view: "home",
 
   loadCategories: async () => {
@@ -78,6 +82,20 @@ export const useStore = create<State>((set, get) => ({
       const res = await fetch("/api/categories");
       if (res.ok) set({ categories: await res.json() });
     } catch {}
+  },
+
+  loadMe: async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) set({ user: (await res.json()).user || null });
+    } catch {}
+  },
+
+  logout: async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    set({ user: null });
   },
 
   connect: () => {

@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function Home({ prefilledCode }: Props) {
-  const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError, categories } = useStore();
+  const { pseudo, setPseudo, createLobby, joinLobby, errorMsg, setError, categories, user } = useStore();
   const [stage, setStage] = useState<"idle" | "host" | "guest" | "config">(
     prefilledCode ? "guest" : "idle"
   );
@@ -90,6 +90,9 @@ export function Home({ prefilledCode }: Props) {
                   Rejoindre avec un code
                 </Button>
                 <p className="label text-ink-faint text-center mt-1">3 à 12 joueurs · sur le même wifi ou à distance</p>
+                <a href="/moi" className="label text-center mt-1 hover:text-ink" style={{ color: "var(--accent-deep)" }}>
+                  {user ? "🔒 Mon espace (questions privées)" : "🔒 Se connecter · créer mes questions"}
+                </a>
               </Card>
             )}
 

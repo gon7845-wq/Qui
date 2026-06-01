@@ -29,6 +29,15 @@ export interface CategoryMeta {
   emoji: string;
   tone: "warm" | "spicy" | "fun";
   count: number;
+  private?: boolean;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string | null;
+  avatar?: string | null;
+  premium?: boolean;
 }
 
 export interface Lobby {
