@@ -27,7 +27,7 @@ export function CategoryPicker({ categories, selected, onToggle, onAll, onNone }
               style={
                 on
                   ? { background: `linear-gradient(135deg, ${TONE[c.tone].a}, ${TONE[c.tone].b})`, color: "#fff" }
-                  : { background: "rgba(36,27,51,0.06)", color: "var(--ink-soft)" }
+                  : { background: "var(--surface)", color: "var(--ink-soft)" }
               }
             >
               {c.private ? "🔒 " : ""}{c.emoji} {c.name} <span style={{ opacity: 0.7 }}>{c.count}</span>

@@ -191,6 +191,7 @@ function createLobby(hostSocketId, hostPseudo, settings, hostUserId) {
     roundStartTime: null,
     roundEndTime: null,
     revealEndTime: null,
+    countdownEndTime: null,
     votes: {}, // voterPid -> targetPid (current round)
     history: [], // [{question, votes:{voterPid:targetPid}, ranked:[{id,pseudo,count}]}]
     roundTimer: null,
@@ -246,6 +247,7 @@ function publicLobby(lobby) {
     currentQuestion: lobby.currentQuestion,
     roundEndTime: lobby.roundEndTime,
     revealEndTime: lobby.revealEndTime,
+    countdownEndTime: lobby.countdownEndTime || null,
     votesCount: Object.keys(lobby.votes).length,
     paused: lobby.paused,
   };
@@ -274,6 +276,7 @@ function startRound(lobby) {
   lobby.roundStartTime = now;
   lobby.roundEndTime = now + lobby.settings.voteDuration * 1000;
   lobby.revealEndTime = null;
+  lobby.countdownEndTime = null;
   broadcast(lobby);
   lobby.roundTimer = setTimeout(() => endRound(lobby), lobby.settings.voteDuration * 1000);
 }
@@ -487,7 +490,15 @@ io.on("connection", (socket) => {
       lobby.history = [];
       lobby.currentRound = 0;
       lobby.questions = questions;
-      startRound(lobby);
+      lobby.lastReveal = null;
+      lobby.lastFinal = null;
+      // décompte 3-2-1 avant la 1ère manche (timing équitable)
+      clearRoundTimer(lobby);
+      lobby.paused = false;
+      lobby.state = "countdown";
+      lobby.countdownEndTime = Date.now() + 3000;
+      broadcast(lobby);
+      lobby.roundTimer = setTimeout(() => startRound(lobby), 3100);
     } catch (e) {
       io.to(socket.id).emit("error:msg", { message: "Erreur de chargement des questions" });
     }
@@ -533,6 +544,27 @@ io.on("connection", (socket) => {
         else startRound(lobby);
       }, remaining);
     }
+    broadcast(lobby);
+  });
+
+  // Rejouer → retour au lobby (l'hôte peut changer les réglages)
+  socket.on("game:tolobby", () => {
+    const { lobby, pid } = ctx(socket);
+    if (!lobby || lobby.hostId !== pid) return;
+    if (lobby.state !== "ended") return;
+    clearRoundTimer(lobby);
+    lobby.state = "waiting";
+    lobby.paused = false;
+    lobby.currentRound = 0;
+    lobby.currentQuestion = null;
+    lobby.votes = {};
+    lobby.roundEndTime = null;
+    lobby.revealEndTime = null;
+    lobby.countdownEndTime = null;
+    lobby.history = [];
+    lobby.lastReveal = null;
+    lobby.lastFinal = null;
+    for (const p of lobby.players) p.score = 0;
     broadcast(lobby);
   });
 

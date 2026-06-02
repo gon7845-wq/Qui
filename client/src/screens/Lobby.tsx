@@ -4,6 +4,7 @@ import { PlayerGrid } from "../components/PlayerGrid";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { CategoryPicker } from "../components/CategoryPicker";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 const AVATAR_KEY = "qui_avatar";
 const EMOJIS = [
@@ -66,6 +67,7 @@ export function Lobby() {
       >
         ← Quitter
       </button>
+      <ThemeToggle className="fixed top-5 right-5 z-40" />
 
       <div className="min-h-full grid place-items-center px-5 py-16">
         <div className="w-full max-w-2xl flex flex-col items-center gap-7">
@@ -94,7 +96,7 @@ export function Lobby() {
             </div>
 
             {isHost && (
-              <div className="mt-6 border-t border-[#F3E7DD] pt-5 text-left">
+              <div className="mt-6 border-t border-[var(--hairline)] pt-5 text-left">
                 <div className="label text-ink-soft mb-3 text-center">Réglages</div>
                 <div className="grid gap-3">
                   <Pair label="Votes">
@@ -117,7 +119,7 @@ export function Lobby() {
                   </Pair>
                 </div>
 
-                <div className="mt-4 border-t border-[#F3E7DD] pt-4">
+                <div className="mt-4 border-t border-[var(--hairline)] pt-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="label text-ink-soft">Catégories</span>
                     <span className="label text-ink-faint">{availableQuestions} questions</span>
@@ -142,7 +144,7 @@ export function Lobby() {
                 style={
                   !self?.avatar
                     ? { background: "linear-gradient(135deg,#FF5E8A,#FF9F43)", color: "#fff" }
-                    : { background: "#FFF1E9", color: "var(--ink-soft)" }
+                    : { background: "var(--surface)", color: "var(--ink-soft)" }
                 }
                 title="Initiale"
               >
@@ -154,7 +156,7 @@ export function Lobby() {
                   onClick={() => pickAvatar(e)}
                   className="grid h-10 w-10 place-items-center rounded-full text-xl transition-transform hover:scale-110"
                   style={{
-                    background: self?.avatar === e ? "linear-gradient(135deg,#FF5E8A,#FF9F43)" : "#FFF1E9",
+                    background: self?.avatar === e ? "linear-gradient(135deg,#FF5E8A,#FF9F43)" : "var(--surface)",
                     boxShadow: self?.avatar === e ? "0 0 0 2px var(--accent)" : undefined,
                   }}
                 >

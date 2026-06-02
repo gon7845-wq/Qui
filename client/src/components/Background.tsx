@@ -1,3 +1,5 @@
+import { useStore } from "../store";
+
 const BLOBS = [
   { color: "#FFD0E2", top: "-14%", left: "-10%", size: "52vmax", delay: "0s" },
   { color: "#FFE6B0", top: "-8%", left: "58%", size: "44vmax", delay: "-3s" },
@@ -7,10 +9,17 @@ const BLOBS = [
 ];
 
 export function Background() {
+  const theme = useStore((s) => s.theme);
+  const dark = theme === "dark";
+
   return (
     <div
       className="fixed inset-0 -z-10 overflow-hidden"
-      style={{ background: "linear-gradient(165deg, #FFF7EC 0%, #FFF1F2 48%, #F3F8FF 100%)" }}
+      style={{
+        background: dark
+          ? "linear-gradient(165deg, #18121F 0%, #1B1426 50%, #141622 100%)"
+          : "linear-gradient(165deg, #FFF7EC 0%, #FFF1F2 48%, #F3F8FF 100%)",
+      }}
     >
       {BLOBS.map((b, i) => (
         <div
@@ -22,14 +31,14 @@ export function Background() {
             width: b.size,
             height: b.size,
             background: b.color,
-            opacity: 0.6,
+            opacity: dark ? 0.16 : 0.6,
             filter: "blur(64px)",
             animation: "blob-drift 24s ease-in-out infinite",
             animationDelay: b.delay,
           }}
         />
       ))}
-      <div className="grain" />
+      <div className="grain" style={{ opacity: dark ? 0.25 : 0.5 }} />
     </div>
   );
 }

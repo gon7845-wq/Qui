@@ -129,7 +129,7 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
           onChange={(e) => setPwd(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="Mot de passe"
-          className="w-full rounded-2xl bg-[#FFF1E9] px-4 py-3 font-display text-xl text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
+          className="w-full rounded-2xl bg-[var(--surface)] px-4 py-3 font-display text-xl text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
         />
         {err && <div className="label text-[#E03E73] mt-2">{err}</div>}
         <div className="mt-5">
@@ -213,7 +213,7 @@ function QuestionsTab({ data, reload, onErr }: { data: Data; reload: () => void;
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher dans toutes les questions…"
-            className="flex-1 min-w-[160px] rounded-xl bg-[#FFF1E9] px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+            className="flex-1 min-w-[160px] rounded-xl bg-[var(--surface)] px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
           />
           <button
             onClick={() => setOnlyEnabled((v) => !v)}
@@ -241,10 +241,10 @@ function QuestionsTab({ data, reload, onErr }: { data: Data; reload: () => void;
               const shown = qs.filter(matches);
               const isOpen = !!open[cat.id];
               return (
-                <div key={cat.id} className="rounded-2xl border border-[#F2E6DC] overflow-hidden">
+                <div key={cat.id} className="rounded-2xl border border-[var(--hairline)] overflow-hidden">
                   <button
                     onClick={() => setOpen((o) => ({ ...o, [cat.id]: !o[cat.id] }))}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[#FFF8F1] transition-colors"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--surface-hover)] transition-colors"
                   >
                     <span
                       className="grid h-8 w-8 place-items-center rounded-full text-base shrink-0"
@@ -315,9 +315,9 @@ function AddQuestion({ categories, reload, onErr }: { categories: Category[]; re
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Qui… ?"
-          className="flex-1 min-w-[180px] rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+          className="flex-1 min-w-[180px] rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
         />
-        <select value={catId} onChange={(e) => setCatId(e.target.value)} className="rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none">
+        <select value={catId} onChange={(e) => setCatId(e.target.value)} className="rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none">
           {categories.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
         </select>
         <Button size="sm" onClick={add} disabled={!text.trim()}>Ajouter</Button>
@@ -332,7 +332,7 @@ function AddQuestion({ categories, reload, onErr }: { categories: Category[]; re
             onChange={(e) => setBulk(e.target.value)}
             rows={5}
             placeholder="Une question par ligne…"
-            className="w-full rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+            className="w-full rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
           />
           <div className="mt-2 flex justify-end">
             <Button size="sm" onClick={addBulk} disabled={!bulk.trim()}>
@@ -369,7 +369,7 @@ function QuestionRow({ q, cat, categories, reload, onErr }: { q: Question; cat?:
 
   if (editing) {
     return (
-      <div className="rounded-2xl p-2.5 flex flex-wrap items-center gap-2" style={{ background: "#FFF1E9" }}>
+      <div className="rounded-2xl p-2.5 flex flex-wrap items-center gap-2" style={{ background: "var(--surface)" }}>
         <input value={text} onChange={(e) => setText(e.target.value)} className="flex-1 min-w-[160px] rounded-lg bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
         <select value={catId} onChange={(e) => setCatId(e.target.value)} className="rounded-lg bg-white px-2 py-2 text-sm outline-none">
           {categories.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
@@ -381,7 +381,7 @@ function QuestionRow({ q, cat, categories, reload, onErr }: { q: Question; cat?:
   }
 
   return (
-    <div className={`rounded-2xl px-3 py-2.5 flex items-center gap-3 ${q.enabled ? "" : "opacity-50"}`} style={{ background: "#FFF1E9" }}>
+    <div className={`rounded-2xl px-3 py-2.5 flex items-center gap-3 ${q.enabled ? "" : "opacity-50"}`} style={{ background: "var(--surface)" }}>
       <Toggle on={q.enabled} onClick={toggle} />
       <span className="flex-1 text-sm text-ink leading-tight">{q.text}</span>
       {cat && (
@@ -415,7 +415,7 @@ const TONE_OPTS: Tone[] = ["warm", "spicy", "fun"];
 
 function ToneSelect({ value, onChange }: { value: Tone; onChange: (t: Tone) => void }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as Tone)} className="rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none">
+    <select value={value} onChange={(e) => onChange(e.target.value as Tone)} className="rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none">
       {TONE_OPTS.map((t) => <option key={t} value={t}>{TONE[t].emoji} {TONE[t].label}</option>)}
     </select>
   );
@@ -439,8 +439,8 @@ function AddCategory({ reload, onErr }: { reload: () => void; onErr: (e: any) =>
     <Card className="p-4">
       <div className="label text-ink-soft mb-2">Ajouter une catégorie</div>
       <div className="flex flex-wrap gap-2">
-        <input value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} className="w-14 rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-center text-lg outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
-        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Nom de la catégorie" className="flex-1 min-w-[140px] rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
+        <input value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} className="w-14 rounded-xl bg-[var(--surface)] px-3 py-2.5 text-center text-lg outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
+        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Nom de la catégorie" className="flex-1 min-w-[140px] rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
         <ToneSelect value={tone} onChange={setTone} />
         <Button size="sm" onClick={add} disabled={!name.trim()}>Ajouter</Button>
       </div>
@@ -470,7 +470,7 @@ function CategoryRow({ c, canDelete, reload, onErr }: { c: Category; canDelete: 
 
   if (editing) {
     return (
-      <div className="rounded-2xl p-2.5 flex flex-wrap items-center gap-2" style={{ background: "#FFF1E9" }}>
+      <div className="rounded-2xl p-2.5 flex flex-wrap items-center gap-2" style={{ background: "var(--surface)" }}>
         <input value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} className="w-12 rounded-lg bg-white px-2 py-2 text-center text-lg outline-none" />
         <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 min-w-[120px] rounded-lg bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
         <ToneSelect value={tone} onChange={setTone} />
@@ -481,7 +481,7 @@ function CategoryRow({ c, canDelete, reload, onErr }: { c: Category; canDelete: 
   }
 
   return (
-    <div className="rounded-2xl px-3 py-2.5 flex items-center gap-3" style={{ background: "#FFF1E9" }}>
+    <div className="rounded-2xl px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--surface)" }}>
       <span className="grid h-9 w-9 place-items-center rounded-full text-lg" style={{ background: `linear-gradient(135deg, ${TONE[c.tone].a}, ${TONE[c.tone].b})` }}>
         {c.emoji}
       </span>

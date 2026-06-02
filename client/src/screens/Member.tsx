@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Brand } from "../components/Brand";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { TONE, type Tone } from "../lib/colors";
 
 interface Category { id: string; name: string; emoji: string; tone: Tone; count: number }
@@ -31,9 +32,18 @@ export function Member() {
     loadMe().finally(() => setReady(true));
   }, [loadMe]);
 
-  if (!ready) return <div className="grid h-full place-items-center label text-ink-soft">…</div>;
-  if (!user) return <Login />;
-  return <Dashboard onLogout={logout} email={user.email} name={user.name || undefined} />;
+  return (
+    <>
+      <ThemeToggle className="fixed top-5 right-5 z-50" />
+      {!ready ? (
+        <div className="grid h-full place-items-center label text-ink-soft">…</div>
+      ) : !user ? (
+        <Login />
+      ) : (
+        <Dashboard onLogout={logout} email={user.email} name={user.name || undefined} />
+      )}
+    </>
+  );
 }
 
 // ─── Connexion ───
@@ -78,9 +88,9 @@ function Login() {
             </Button>
           </a>
           <div className="flex items-center gap-2 text-ink-faint">
-            <div className="h-px flex-1 bg-[#EADFD4]" />
+            <div className="h-px flex-1 bg-[var(--hairline)]" />
             <span className="label">ou</span>
-            <div className="h-px flex-1 bg-[#EADFD4]" />
+            <div className="h-px flex-1 bg-[var(--hairline)]" />
           </div>
           <div className="flex flex-col gap-2">
             <input
@@ -88,7 +98,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ton@email.com"
-              className="w-full rounded-2xl bg-[#FFF1E9] px-4 py-3 text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+              className="w-full rounded-2xl bg-[var(--surface)] px-4 py-3 text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
             />
             <Button fullWidth disabled={!email.includes("@") || busy} onClick={magic}>
               {busy ? "…" : "Recevoir un lien magique"}
@@ -228,9 +238,9 @@ function Questions({ data, reload, onErr }: { data: Data; reload: () => void; on
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
             placeholder="Qui… ?"
-            className="flex-1 min-w-[180px] rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
+            className="flex-1 min-w-[180px] rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]"
           />
-          <select value={catId} onChange={(e) => setCatId(e.target.value)} className="rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none">
+          <select value={catId} onChange={(e) => setCatId(e.target.value)} className="rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none">
             {data.categories.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
           </select>
           <Button size="sm" onClick={add} disabled={!text.trim()}>Ajouter</Button>
@@ -240,7 +250,7 @@ function Questions({ data, reload, onErr }: { data: Data; reload: () => void; on
       <Card className="p-4 flex flex-col gap-1.5">
         {data.questions.length === 0 && <div className="label text-ink-faint py-6 text-center">Aucune question pour l'instant</div>}
         {data.questions.map((qq) => (
-          <div key={qq.id} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${qq.enabled ? "" : "opacity-50"}`} style={{ background: "#FFF1E9" }}>
+          <div key={qq.id} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${qq.enabled ? "" : "opacity-50"}`} style={{ background: "var(--surface)" }}>
             <span className="flex-1 text-sm text-ink leading-tight">{qq.text}</span>
             {catById[qq.categoryId] && (
               <span className={`tone-${catById[qq.categoryId].tone} shrink-0 pill px-2 py-1 text-white text-[11px]`} style={{ background: "linear-gradient(135deg,var(--tone-a),var(--tone-b))" }}>
@@ -280,11 +290,11 @@ function Categories({ data, reload, onErr }: { data: Data; reload: () => void; o
       <Card className="p-4">
         <div className="label text-ink-soft mb-2">Nouvelle catégorie</div>
         <div className="flex flex-wrap gap-2">
-          <select value={emoji} onChange={(e) => setEmoji(e.target.value)} className="rounded-xl bg-[#FFF1E9] px-2 py-2.5 text-lg outline-none">
+          <select value={emoji} onChange={(e) => setEmoji(e.target.value)} className="rounded-xl bg-[var(--surface)] px-2 py-2.5 text-lg outline-none">
             {EMOJIS.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
-          <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Nom" className="flex-1 min-w-[120px] rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
-          <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="rounded-xl bg-[#FFF1E9] px-3 py-2.5 text-sm text-ink outline-none">
+          <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Nom" className="flex-1 min-w-[120px] rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-[#FF5E8A]" />
+          <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="rounded-xl bg-[var(--surface)] px-3 py-2.5 text-sm text-ink outline-none">
             {(["warm", "spicy", "fun"] as Tone[]).map((t) => <option key={t} value={t}>{TONE[t].emoji} {TONE[t].label}</option>)}
           </select>
           <Button size="sm" onClick={add} disabled={!name.trim()}>Créer</Button>
@@ -294,7 +304,7 @@ function Categories({ data, reload, onErr }: { data: Data; reload: () => void; o
       <Card className="p-4 flex flex-col gap-1.5">
         {data.categories.length === 0 && <div className="label text-ink-faint py-6 text-center">Aucune catégorie privée</div>}
         {data.categories.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 rounded-2xl px-3 py-2.5" style={{ background: "#FFF1E9" }}>
+          <div key={c.id} className="flex items-center gap-3 rounded-2xl px-3 py-2.5" style={{ background: "var(--surface)" }}>
             <span className="grid h-9 w-9 place-items-center rounded-full text-lg" style={{ background: `linear-gradient(135deg, ${TONE[c.tone].a}, ${TONE[c.tone].b})` }}>{c.emoji}</span>
             <div className="flex-1 min-w-0">
               <div className="font-display text-ink leading-tight">{c.name}</div>

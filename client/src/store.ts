@@ -22,6 +22,14 @@ function clearSession() {
   } catch {}
 }
 
+function initialTheme(): "light" | "dark" {
+  try {
+    return localStorage.getItem("qui_theme") === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
 interface State {
   socket: Socket | null;
   selfId: string | null;
@@ -32,8 +40,10 @@ interface State {
   errorMsg: string | null;
   categories: CategoryMeta[];
   user: User | null;
+  theme: "light" | "dark";
   view: "home" | "create" | "join" | "lobby" | "game" | "final";
 
+  toggleTheme: () => void;
   connect: () => Socket;
   loadCategories: () => Promise<void>;
   loadMe: () => Promise<void>;
@@ -53,6 +63,7 @@ interface State {
   vote: (targetId: string) => void;
   startGame: () => void;
   nextRound: () => void;
+  backToLobby: () => void;
   pause: () => void;
   resume: () => void;
   setAvatar: (emoji: string) => void;
@@ -75,7 +86,17 @@ export const useStore = create<State>((set, get) => ({
   errorMsg: null,
   categories: [],
   user: null,
+  theme: initialTheme(),
   view: "home",
+
+  toggleTheme: () => {
+    const next = get().theme === "dark" ? "light" : "dark";
+    try {
+      localStorage.setItem("qui_theme", next);
+    } catch {}
+    document.documentElement.dataset.theme = next === "dark" ? "dark" : "";
+    set({ theme: next });
+  },
 
   loadCategories: async () => {
     try {
@@ -107,11 +128,14 @@ export const useStore = create<State>((set, get) => ({
     });
     socket.on("lobby:update", (lobby: Lobby) => {
       set({ lobby });
+      const { view } = get();
       if (lobby.state === "question") {
-        const { view, reveal } = get();
-        if (view !== "game" || reveal) {
-          set({ view: "game", reveal: null });
-        }
+        set({ view: "game", reveal: null });
+      } else if (lobby.state === "countdown") {
+        if (view !== "game") set({ view: "game", reveal: null });
+      } else if (lobby.state === "waiting" && view !== "lobby") {
+        // retour au lobby (ex: "Rejouer")
+        set({ view: "lobby", reveal: null, final: null });
       }
     });
     socket.on("game:reveal", (data: RevealData) => {
@@ -225,6 +249,10 @@ export const useStore = create<State>((set, get) => ({
 
   nextRound: () => {
     get().socket?.emit("game:next");
+  },
+
+  backToLobby: () => {
+    get().socket?.emit("game:tolobby");
   },
 
   pause: () => {

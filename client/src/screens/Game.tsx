@@ -6,6 +6,7 @@ import { Card } from "../components/Card";
 import { VoteReactions } from "../components/VoteReactions";
 import { Confetti } from "../components/Confetti";
 import { PauseOverlay } from "../components/PauseOverlay";
+import { Countdown } from "../components/Countdown";
 import { TONE, tone } from "../lib/colors";
 import type { Ranked } from "../types";
 
@@ -15,6 +16,7 @@ export function Game() {
 
   const isQuestion = lobby.state === "question" && !reveal;
   const isReveal = lobby.state === "reveal" && reveal;
+  const isCountdown = lobby.state === "countdown" && !!lobby.countdownEndTime;
   const isHost = lobby.hostId === selfId;
   const canPause = isHost && !lobby.paused && (isQuestion || isReveal);
 
@@ -40,6 +42,8 @@ export function Game() {
           ⏸ Pause
         </button>
       )}
+
+      {isCountdown && <Countdown endTime={lobby.countdownEndTime!} />}
 
       <AnimatePresence>
         {lobby.paused && <PauseOverlay isHost={isHost} onResume={resume} />}
@@ -112,7 +116,7 @@ function QuestionPhase() {
         </motion.h1>
 
         {/* Timer bar */}
-        <div className="mt-5 h-2.5 w-full rounded-full bg-[#F3E7DD] overflow-hidden">
+        <div className="mt-5 h-2.5 w-full rounded-full bg-[var(--hairline)] overflow-hidden">
           <div
             className="h-full rounded-full tone-gradient"
             style={{

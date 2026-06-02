@@ -12,6 +12,13 @@
   --ink-soft: #6E6480;
   --ink-faint: #ADA3BC;
 
+  /* Surfaces secondaires (champs, lignes, hover) — variabilisées pour le dark */
+  --surface: #FFF1E9;
+  --surface-hover: #FFF8F1;
+  --hairline: #F0E4D8;
+  --card-shadow: rgba(120, 60, 90, 0.28);
+  --glass-bg: rgba(255, 253, 250, 0.74);
+
   /* Brand accent — sunset (pink → tangerine), the one thing you remember */
   --accent: #FF5E8A;
   --accent-2: #FF9F43;
@@ -26,6 +33,21 @@
   /* Tone — fun (neutre) : sky → violet */
   --fun-a: #3FB6FF;
   --fun-b: #8B5CF6;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15111E;
+  --card: #221B30;
+  --ink: #F2EEFA;
+  --ink-soft: #B0A8C4;
+  --ink-faint: #776E8C;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.11);
+  --hairline: rgba(255, 255, 255, 0.10);
+  --card-shadow: rgba(0, 0, 0, 0.55);
+  --glass-bg: rgba(34, 27, 48, 0.72);
+  --accent-deep: #FF7FA6;
 }
 
 html, body, #root {
@@ -90,19 +112,19 @@ body {
 .soft-card {
   background: var(--card);
   border-radius: 28px;
-  border: 1.5px solid rgba(36, 27, 51, 0.05);
+  border: 1.5px solid var(--hairline);
   box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.8) inset,
-    0 22px 44px -20px rgba(120, 60, 90, 0.30),
-    0 6px 14px -8px rgba(120, 60, 90, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 22px 44px -20px var(--card-shadow),
+    0 6px 14px -8px var(--card-shadow);
 }
 .glass-card {
-  background: rgba(255, 253, 250, 0.74);
+  background: var(--glass-bg);
   backdrop-filter: blur(18px) saturate(1.5);
   -webkit-backdrop-filter: blur(18px) saturate(1.5);
   border-radius: 28px;
-  border: 1.5px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 22px 52px -22px rgba(120, 60, 90, 0.4);
+  border: 1.5px solid var(--hairline);
+  box-shadow: 0 22px 52px -22px var(--card-shadow);
 }
 
 /* ─── Pills ─── */

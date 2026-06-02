@@ -24,7 +24,7 @@ interface Bulletin {
 }
 
 export function Final() {
-  const { final, lobby, selfId, startGame, leave } = useStore();
+  const { final, lobby, selfId, backToLobby, leave } = useStore();
 
   const bulletins = useMemo<Bulletin[]>(() => {
     if (!final || !lobby) return [];
@@ -144,7 +144,7 @@ export function Final() {
               Quitter
             </Button>
             {isHost && (
-              <Button size="sm" onClick={startGame}>
+              <Button size="sm" onClick={backToLobby}>
                 Rejouer →
               </Button>
             )}
@@ -232,7 +232,7 @@ function BulletinCard({ b, rank, isSelf }: { b: Bulletin; rank: number; isSelf: 
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: d }}
                       className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5"
-                      style={{ background: "#FFF1E9" }}
+                      style={{ background: "var(--surface)" }}
                     >
                       <span className="font-body text-sm text-ink leading-tight">{e.text}</span>
                       <span className="tone-gradient shrink-0 grid place-items-center rounded-full px-2.5 h-7 text-white font-display text-sm">

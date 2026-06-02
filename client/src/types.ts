@@ -1,4 +1,4 @@
-export type LobbyState = "waiting" | "question" | "reveal" | "ended";
+export type LobbyState = "waiting" | "countdown" | "question" | "reveal" | "ended";
 
 export interface Question {
   text: string;
@@ -51,6 +51,7 @@ export interface Lobby {
   currentQuestion: Question | null;
   roundEndTime: number | null;
   revealEndTime: number | null;
+  countdownEndTime: number | null;
   votesCount: number;
   paused: boolean;
 }

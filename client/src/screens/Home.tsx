@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 import { Brand } from "../components/Brand";
 import { Card } from "../components/Card";
 import { CategoryPicker } from "../components/CategoryPicker";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 interface Props {
   prefilledCode?: string | null;
@@ -68,6 +69,7 @@ export function Home({ prefilledCode }: Props) {
 
   return (
     <div className="relative h-full w-full overflow-y-auto no-scrollbar">
+      <ThemeToggle className="fixed top-5 right-5 z-50" />
       <div className="min-h-full grid place-items-center px-5 py-10">
         <div className="w-full max-w-md flex flex-col items-center gap-7">
           <div className="flex flex-col items-center text-center gap-2">
@@ -132,7 +134,7 @@ export function Home({ prefilledCode }: Props) {
                   </Pair>
                 </div>
 
-                <div className="mt-5 border-t border-[#F3E7DD] pt-4">
+                <div className="mt-5 border-t border-[var(--hairline)] pt-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="label text-ink-soft">Catégories</span>
                     <span className="label text-ink-faint">{availableQuestions} questions</span>
@@ -219,7 +221,7 @@ function PrenomInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Sam"
-        className="w-full rounded-2xl bg-[#FFF1E9] px-4 py-3 font-display text-2xl text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
+        className="w-full rounded-2xl bg-[var(--surface)] px-4 py-3 font-display text-2xl text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
       />
     </label>
   );
@@ -244,7 +246,7 @@ function CodeInput({
         value={value}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
         placeholder="A2BC"
-        className="w-full rounded-2xl bg-[#FFF1E9] px-4 py-3 text-center font-display text-4xl tracking-[0.4em] text-[#E03E73] outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
+        className="w-full rounded-2xl bg-[var(--surface)] px-4 py-3 text-center font-display text-4xl tracking-[0.4em] text-[#E03E73] outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-[#FF5E8A]"
       />
     </label>
   );
