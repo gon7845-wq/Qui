@@ -8,6 +8,7 @@ import { Confetti } from "../components/Confetti";
 import { PauseOverlay } from "../components/PauseOverlay";
 import { Countdown } from "../components/Countdown";
 import { TONE, tone } from "../lib/colors";
+import { useNow } from "../lib/useNow";
 import type { Ranked } from "../types";
 
 export function Game() {
@@ -56,14 +57,10 @@ export function Game() {
 function QuestionPhase() {
   const { lobby, selfId, vote } = useStore();
   const [selected, setSelected] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const now = useNow(100);
   const currentRound = lobby?.currentRound ?? 0;
 
   useEffect(() => setSelected(null), [currentRound]);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 100);
-    return () => clearInterval(id);
-  }, []);
 
   if (!lobby || !lobby.currentQuestion || !lobby.roundEndTime) return null;
 

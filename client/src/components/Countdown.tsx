@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { playCountdown } from "../lib/sound";
+import { useNow } from "../lib/useNow";
 
 export function Countdown({ endTime }: { endTime: number }) {
-  const [now, setNow] = useState(Date.now());
+  const now = useNow(80);
 
   useEffect(() => {
     playCountdown();
-    const id = setInterval(() => setNow(Date.now()), 80);
-    return () => clearInterval(id);
   }, [endTime]);
 
   const remaining = (endTime - now) / 1000;

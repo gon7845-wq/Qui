@@ -69,7 +69,7 @@ export function Home({ prefilledCode }: Props) {
 
   return (
     <div className="relative h-full w-full overflow-y-auto no-scrollbar">
-      <ThemeToggle className="fixed top-5 right-5 z-50" />
+      <ThemeToggle />
       <div className="min-h-full grid place-items-center px-5 py-10">
         <div className="w-full max-w-md flex flex-col items-center gap-7">
           <div className="flex flex-col items-center text-center gap-2">
