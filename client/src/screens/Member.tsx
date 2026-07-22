@@ -5,13 +5,15 @@ import { Button } from "../components/Button";
 import { Brand } from "../components/Brand";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { TONE, type Tone } from "../lib/colors";
+import { API_BASE, apiFetch, isNative } from "../lib/api";
+import { Browser } from "@capacitor/browser";
 
 interface Category { id: string; name: string; emoji: string; tone: Tone; count: number }
 interface Question { id: string; text: string; categoryId: string; enabled: boolean }
 interface Data { categories: Category[]; questions: Question[]; stats: { total: number; enabled: number } }
 
 async function api(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`/api/me${path}`, {
+  const res = await apiFetch(`/api/me${path}`, {
     ...opts,
     headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
   });
@@ -34,7 +36,7 @@ export function Member() {
 
   return (
     <>
-      <ThemeToggle className="fixed top-5 right-5 z-50" />
+      <ThemeToggle />
       {!ready ? (
         <div className="grid h-full place-items-center label text-ink-soft">…</div>
       ) : !user ? (
@@ -58,10 +60,10 @@ function Login() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await fetch("/api/auth/magic", {
+      const r = await apiFetch("/api/auth/magic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, app: isNative }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Erreur");
@@ -82,11 +84,24 @@ function Login() {
             <div className="font-display text-2xl text-ink">Mon espace</div>
             <div className="label text-ink-soft mt-1">Crée tes propres questions privées</div>
           </div>
-          <a href="/api/auth/google" className="w-full">
-            <Button variant="soft" size="lg" fullWidth>
+          {isNative ? (
+            // Google refuse l'OAuth dans une WebView : on ouvre le navigateur
+            // système, le serveur renvoie ensuite vers l'app (deep link qui://auth)
+            <Button
+              variant="soft"
+              size="lg"
+              fullWidth
+              onClick={() => Browser.open({ url: `${API_BASE}/api/auth/google?app=1` })}
+            >
               <span style={{ fontSize: 18 }}>🇬</span> Continuer avec Google
             </Button>
-          </a>
+          ) : (
+            <a href="/api/auth/google" className="w-full">
+              <Button variant="soft" size="lg" fullWidth>
+                <span style={{ fontSize: 18 }}>🇬</span> Continuer avec Google
+              </Button>
+            </a>
+          )}
           <div className="flex items-center gap-2 text-ink-faint">
             <div className="h-px flex-1 bg-[var(--hairline)]" />
             <span className="label">ou</span>

@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { SHARE_ORIGIN } from "../lib/api";
 
 const AVATAR_KEY = "qui_avatar";
 const EMOJIS = [
@@ -36,7 +37,7 @@ export function Lobby() {
 
   const isHost = lobby.hostId === selfId;
   const canStart = lobby.players.length >= 3;
-  const shareUrl = `${window.location.origin}/r/${lobby.code}`;
+  const shareUrl = `${SHARE_ORIGIN}/r/${lobby.code}`;
 
   const allCatIds = categories.map((c) => c.id);
   const selCats = (lobby.settings.categories ?? []).length
@@ -67,7 +68,7 @@ export function Lobby() {
       >
         ← Quitter
       </button>
-      <ThemeToggle className="fixed top-5 right-5 z-40" />
+      <ThemeToggle />
 
       <div className="min-h-full grid place-items-center px-5 py-16">
         <div className="w-full max-w-2xl flex flex-col items-center gap-7">

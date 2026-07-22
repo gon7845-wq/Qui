@@ -1,0 +1,75 @@
+name: Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - ".github/workflows/android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install & build web
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Build debug APK (test sur téléphone)
+        working-directory: client/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qui-debug-apk
+          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build release AAB (Play Store)
+        working-directory: client/android
+        run: ./gradlew bundleRelease
+
+      - name: Check keystore secret
+        id: keystore
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "exists=$([ -n "$KS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Sign release AAB
+        if: steps.keystore.outputs.exists == 'true'
+        working-directory: client/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STOREPASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > upload.keystore
+          jarsigner -keystore upload.keystore -storepass "$STOREPASS" -keypass "$KEYPASS" \
+            app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          rm upload.keystore
+
+      - name: Upload release AAB
+        if: steps.keystore.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qui-release-aab
+          path: client/android/app/build/outputs/bundle/release/app-release.aab

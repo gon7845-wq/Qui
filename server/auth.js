@@ -47,6 +47,19 @@ function verifySession(token) {
     return null;
   }
 }
+// Fin de connexion : sur le web on pose le cookie et on va sur /moi ;
+// depuis l'app mobile on renvoie vers le deep link qui://auth avec le token.
+function finishLogin(res, user, fromApp) {
+  setCookie(res, user);
+  if (!fromApp) return res.redirect("/moi");
+  const deepLink = `qui://auth?token=${encodeURIComponent(signSession(user))}`;
+  res.send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connexion — Qui ?</title></head>
+<body style="font-family:sans-serif;display:grid;place-items:center;min-height:90vh;background:#FFF6EC">
+<div style="text-align:center"><h2>Connecté ✔</h2><p>Retourne dans l'app :</p>
+<a href="${deepLink}" style="background:#FF5E8A;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none">Ouvrir Qui ?</a></div>
+<script>location.href=${JSON.stringify(deepLink)};</script></body></html>`);
+}
+
 function setCookie(res, user) {
   res.cookie(COOKIE, signSession(user), {
     httpOnly: true,
@@ -58,8 +71,18 @@ function setCookie(res, user) {
 }
 
 export function userIdFromReq(req) {
+  // App mobile : token Bearer (les cookies ne traversent pas la WebView native)
+  const h = req.headers?.authorization;
+  if (h && h.startsWith("Bearer ")) {
+    const uid = verifySession(h.slice(7))?.uid;
+    if (uid) return uid;
+  }
   const tok = req.cookies?.[COOKIE];
   return tok ? verifySession(tok)?.uid || null : null;
+}
+
+export function userIdFromToken(token) {
+  return token ? verifySession(token)?.uid || null : null;
 }
 
 export function userIdFromCookieHeader(header) {
@@ -103,7 +126,7 @@ export function mountAuth(app) {
   });
 
   // ── Google OAuth ──
-  app.get("/api/auth/google", (_req, res) => {
+  app.get("/api/auth/google", (req, res) => {
     if (!GOOGLE_ID) return res.status(500).send("Google non configuré");
     const params = new URLSearchParams({
       client_id: GOOGLE_ID,
@@ -112,6 +135,8 @@ export function mountAuth(app) {
       scope: "openid email profile",
       access_type: "online",
       prompt: "select_account",
+      // flow lancé depuis l'app mobile → retour via deep link
+      state: req.query.app === "1" ? "app" : "web",
     });
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
   });
@@ -143,8 +168,7 @@ export function mountAuth(app) {
         avatar: info.picture,
         provider: "google",
       });
-      setCookie(res, user);
-      res.redirect("/moi");
+      finishLogin(res, user, req.query.state === "app");
     } catch (e) {
       console.error("[auth] google callback:", e.message);
       res.redirect("/?auth=error");
@@ -161,7 +185,8 @@ export function mountAuth(app) {
         "INSERT INTO auth_tokens (token, email, expires_at) VALUES ($1,$2, now() + interval '20 minutes')",
         [token, email]
       );
-      const link = `${APP_URL}/api/auth/magic/callback?token=${token}`;
+      const fromApp = req.body?.app === true || req.body?.app === "true" ? "&app=1" : "";
+      const link = `${APP_URL}/api/auth/magic/callback?token=${token}${fromApp}`;
       const sent = await sendMagicEmail(email, link);
       if (sent) return res.json({ ok: true });
       if (ALLOW_DEV_LOGIN) return res.json({ ok: true, devLink: link }); // local: pas d'email
@@ -182,8 +207,7 @@ export function mountAuth(app) {
       const email = r.rows[0]?.email;
       if (!email) return res.redirect("/?auth=expired");
       const user = await upsertUser({ email, provider: "email" });
-      setCookie(res, user);
-      res.redirect("/moi");
+      finishLogin(res, user, req.query.app === "1");
     } catch (e) {
       res.redirect("/?auth=error");
     }

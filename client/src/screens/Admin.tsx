@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { TONE, type Tone } from "../lib/colors";
+import { apiFetch } from "../lib/api";
 
 interface Category { id: string; name: string; emoji: string; tone: Tone; count: number }
 interface Question { id: string; text: string; categoryId: string; enabled: boolean }
@@ -12,7 +13,7 @@ const KEY = "qui_admin_key";
 const getKey = () => localStorage.getItem(KEY) || "";
 
 async function api(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`/api/admin${path}`, {
+  const res = await apiFetch(`/api/admin${path}`, {
     ...opts,
     headers: { "Content-Type": "application/json", "x-admin-key": getKey(), ...(opts.headers || {}) },
   });
@@ -102,7 +103,7 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
     setBusy(true);
     setErr(null);
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await apiFetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: pwd }),

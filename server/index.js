@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
 import { initDb } from "./db.js";
-import { mountAuth, requireUser, userIdFromReq, userIdFromCookieHeader } from "./auth.js";
+import { mountAuth, requireUser, userIdFromReq, userIdFromCookieHeader, userIdFromToken } from "./auth.js";
 import {
   pickQuestions,
   enabledCount,
@@ -33,6 +33,20 @@ const io = new Server(httpServer, {
 
 app.use(express.json({ limit: "512kb" }));
 app.use(cookieParser());
+
+// ─── CORS : l'app mobile (Capacitor) appelle l'API depuis une autre origine ───
+const APP_ORIGINS = ["capacitor://localhost", "https://localhost", "http://localhost"];
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (APP_ORIGINS.includes(origin) || origin.startsWith("http://localhost:"))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-admin-key");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
 // ─── Authentification (Google + lien magique) ───
 mountAuth(app);
@@ -247,7 +261,7 @@ function publicLobby(lobby) {
     currentQuestion: lobby.currentQuestion,
     roundEndTime: lobby.roundEndTime,
     revealEndTime: lobby.revealEndTime,
-    countdownEndTime: lobby.countdownEndTime || null,
+    countdownEndTime: lobby.countdownEndTime,
     votesCount: Object.keys(lobby.votes).length,
     paused: lobby.paused,
   };
@@ -262,6 +276,32 @@ function clearRoundTimer(lobby) {
     clearTimeout(lobby.roundTimer);
     lobby.roundTimer = null;
   }
+}
+
+// remet la partie à zéro (scores, manches, timers) — game:start et game:tolobby
+function resetGameState(lobby) {
+  clearRoundTimer(lobby);
+  lobby.paused = false;
+  lobby.pauseRemaining = 0;
+  lobby.currentRound = 0;
+  lobby.currentQuestion = null;
+  lobby.votes = {};
+  lobby.roundStartTime = null;
+  lobby.roundEndTime = null;
+  lobby.revealEndTime = null;
+  lobby.countdownEndTime = null;
+  lobby.history = [];
+  lobby.lastReveal = null;
+  lobby.lastFinal = null;
+  for (const p of lobby.players) p.score = 0;
+}
+
+// décompte 3-2-1 avant la 1ère manche (timing équitable)
+function startCountdown(lobby) {
+  lobby.state = "countdown";
+  lobby.countdownEndTime = Date.now() + 3000;
+  broadcast(lobby);
+  lobby.roundTimer = setTimeout(() => startRound(lobby), 3100);
 }
 
 function startRound(lobby) {
@@ -386,8 +426,10 @@ function removePlayer(lobby, pid) {
 
 // ─── Socket handlers ───
 io.on("connection", (socket) => {
-  // identité du compte (si connecté) via le cookie de session du handshake
-  socket.data.userId = userIdFromCookieHeader(socket.handshake.headers.cookie);
+  // identité du compte (si connecté) : token (app mobile) ou cookie de session
+  socket.data.userId =
+    userIdFromToken(socket.handshake.auth?.token) ||
+    userIdFromCookieHeader(socket.handshake.headers.cookie);
 
   socket.on("lobby:create", ({ pseudo, settings }, cb) => {
     try {
@@ -486,19 +528,9 @@ io.on("connection", (socket) => {
       const questions = await pickQuestions(lobby.settings.questionCount, lobby.settings.categories, ownerId);
       // garde-fou si l'état a changé pendant l'await
       if (lobby.state !== "waiting" && lobby.state !== "ended") return;
-      for (const p of lobby.players) p.score = 0;
-      lobby.history = [];
-      lobby.currentRound = 0;
+      resetGameState(lobby);
       lobby.questions = questions;
-      lobby.lastReveal = null;
-      lobby.lastFinal = null;
-      // décompte 3-2-1 avant la 1ère manche (timing équitable)
-      clearRoundTimer(lobby);
-      lobby.paused = false;
-      lobby.state = "countdown";
-      lobby.countdownEndTime = Date.now() + 3000;
-      broadcast(lobby);
-      lobby.roundTimer = setTimeout(() => startRound(lobby), 3100);
+      startCountdown(lobby);
     } catch (e) {
       io.to(socket.id).emit("error:msg", { message: "Erreur de chargement des questions" });
     }
@@ -552,19 +584,8 @@ io.on("connection", (socket) => {
     const { lobby, pid } = ctx(socket);
     if (!lobby || lobby.hostId !== pid) return;
     if (lobby.state !== "ended") return;
-    clearRoundTimer(lobby);
+    resetGameState(lobby);
     lobby.state = "waiting";
-    lobby.paused = false;
-    lobby.currentRound = 0;
-    lobby.currentQuestion = null;
-    lobby.votes = {};
-    lobby.roundEndTime = null;
-    lobby.revealEndTime = null;
-    lobby.countdownEndTime = null;
-    lobby.history = [];
-    lobby.lastReveal = null;
-    lobby.lastFinal = null;
-    for (const p of lobby.players) p.score = 0;
     broadcast(lobby);
   });
 

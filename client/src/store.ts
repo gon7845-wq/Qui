@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import type { CategoryMeta, FinalData, Lobby, RevealData, User } from "./types";
+import { API_BASE, apiFetch, getToken, setToken } from "./lib/api";
 
 const SESSION_KEY = "qui_session";
 function saveSession(code: string, pid: string) {
@@ -22,12 +23,10 @@ function clearSession() {
   } catch {}
 }
 
+const THEME_KEY = "qui_theme";
 function initialTheme(): "light" | "dark" {
-  try {
-    return localStorage.getItem("qui_theme") === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
+  // le script inline de index.html a déjà lu localStorage et posé data-theme
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
 interface State {
@@ -92,50 +91,51 @@ export const useStore = create<State>((set, get) => ({
   toggleTheme: () => {
     const next = get().theme === "dark" ? "light" : "dark";
     try {
-      localStorage.setItem("qui_theme", next);
+      localStorage.setItem(THEME_KEY, next);
     } catch {}
-    document.documentElement.dataset.theme = next === "dark" ? "dark" : "";
+    document.documentElement.dataset.theme = next;
     set({ theme: next });
   },
 
   loadCategories: async () => {
     try {
-      const res = await fetch("/api/categories");
+      const res = await apiFetch("/api/categories");
       if (res.ok) set({ categories: await res.json() });
     } catch {}
   },
 
   loadMe: async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await apiFetch("/api/auth/me");
       if (res.ok) set({ user: (await res.json()).user || null });
     } catch {}
   },
 
   logout: async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {}
+    setToken(null);
     set({ user: null });
   },
 
   connect: () => {
     let socket = get().socket;
     if (socket) return socket;
-    socket = io({
+    socket = io(API_BASE || undefined, {
       transports: ["websocket", "polling"],
       reconnection: true,
+      // App native : le cookie de session ne traverse pas, on passe le token
+      auth: (cb) => cb({ token: getToken() }),
     });
     socket.on("lobby:update", (lobby: Lobby) => {
-      set({ lobby });
-      const { view } = get();
-      if (lobby.state === "question") {
-        set({ view: "game", reveal: null });
-      } else if (lobby.state === "countdown") {
-        if (view !== "game") set({ view: "game", reveal: null });
-      } else if (lobby.state === "waiting" && view !== "lobby") {
+      if (lobby.state === "question" || lobby.state === "countdown") {
+        set({ lobby, view: "game", reveal: null });
+      } else if (lobby.state === "waiting" && get().view !== "lobby") {
         // retour au lobby (ex: "Rejouer")
-        set({ view: "lobby", reveal: null, final: null });
+        set({ lobby, view: "lobby", reveal: null, final: null });
+      } else {
+        set({ lobby });
       }
     });
     socket.on("game:reveal", (data: RevealData) => {

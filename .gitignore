@@ -12,3 +12,7 @@ server/data/
 .claude/settings.local.json
 .playwright-mcp/
 *.png
+# icônes/splash des apps natives : indispensables au build
+!client/assets/**/*.png
+!client/android/**/*.png
+!client/ios/**/*.png
