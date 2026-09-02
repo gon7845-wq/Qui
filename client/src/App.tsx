@@ -7,6 +7,7 @@ import { Game } from "./screens/Game";
 import { Final } from "./screens/Final";
 import { Admin } from "./screens/Admin";
 import { Member } from "./screens/Member";
+import { ConsentBanner } from "./components/ConsentBanner";
 
 export default function App() {
   const { view, connect, loadCategories, loadMe, loadConfig } = useStore();
@@ -45,6 +46,7 @@ export default function App() {
           {view === "final" && <Final />}
         </>
       )}
+      {!isAdmin && <ConsentBanner />}
     </div>
   );
 }

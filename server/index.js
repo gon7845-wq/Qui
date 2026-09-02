@@ -267,7 +267,13 @@ mountBilling(app, { requireUser, adminAuth });
 // publicitaire, cadence des entractes, offres. Aucun secret.
 app.get("/api/config", (_req, res) => {
   res.setHeader("Cache-Control", "public, max-age=300");
-  res.json({ ads: publicAds(), billing: publicBilling() });
+  res.json({
+    ads: publicAds(),
+    billing: publicBilling(),
+    // Le lien vers la politique de confidentialité n'apparaît dans le bandeau
+    // de consentement que si la page existe — pas de lien mort en attendant.
+    legal: { privacyUrl: process.env.PRIVACY_URL || null },
+  });
 });
 
 // Static client build

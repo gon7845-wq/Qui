@@ -99,6 +99,7 @@ export interface BillingConfig {
 export interface AppConfig {
   ads: AdConfig;
   billing: BillingConfig;
+  legal?: { privacyUrl: string | null };
 }
 
 export interface Ranked {

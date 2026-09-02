@@ -36,6 +36,7 @@ function loadAdsense(client: string) {
 export function AdSlot({ format, seed = 0 }: { format: Format; seed?: number }) {
   const lobby = useStore((s) => s.lobby);
   const config = useStore((s) => s.config);
+  const consent = useStore((s) => s.consent);
 
   // `lobby.ads === false` = l'hôte est VIP : personne à sa table ne voit de pub.
   // Hors partie (pas de lobby), on affiche quand même l'autopromo.
@@ -49,7 +50,10 @@ export function AdSlot({ format, seed = 0 }: { format: Format; seed?: number }) 
       : ads.adsense.interstitial
     : null;
 
-  if (ads.adsense && unit) {
+  // Sans acceptation explicite, on ne charge AUCUN script de régie : le script
+  // AdSense pose des cookies dès son chargement, donc le gérer après coup ne
+  // suffirait pas. Nos propres annonces, elles, ne déposent rien.
+  if (ads.adsense && unit && consent === "accepted") {
     return <AdsenseUnit client={ads.adsense.client} slot={unit} format={format} seed={seed} />;
   }
   return <HouseSlot format={format} seed={seed} pool={ads.house} />;

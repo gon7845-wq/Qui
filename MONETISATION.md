@@ -43,6 +43,7 @@ Réglages (variables d'environnement) :
 | `AD_SECONDS` | `7` | Durée d'une entracte. |
 | `AD_SKIP_AFTER` | `4` | Délai avant que l'hôte puisse abréger. Imposé par le serveur, pas par le client. |
 | `FREE_PRIVATE_QUESTIONS` | `25` | Quota de questions privées en gratuit. |
+| `PRIVACY_URL` | — | Lien vers ta politique de confidentialité, affiché dans le bandeau de consentement. |
 
 **Tant qu'aucune régie n'est configurée, les emplacements affichent de
 l'autopromo** (offre VIP, création de questions, partage du lien). Ils ne sont
@@ -116,14 +117,60 @@ Google **uniquement quand `ADSENSE_CLIENT` est défini** — sinon elle reste
 stricte. Si la régie ne remplit pas un emplacement, l'autopromo reprend la
 place au bout de 2,5 s.
 
-> **Consentement (RGPD)** : servir de la publicité personnalisée à des
-> visiteurs européens exige une bannière de consentement (CMP certifiée par
-> Google). **Ce n'est pas encore dans le code.** Sans elle, tu risques la
-> suspension du compte AdSense et une amende CNIL. À faire avant d'activer.
->
-> Note aussi : les polices Google sont chargées depuis `fonts.googleapis.com`
+> Note : les polices Google sont chargées depuis `fonts.googleapis.com`
 > (`client/index.html`), ce qui a déjà valu des condamnations en Europe. Les
 > héberger en local règle le sujet en dix minutes.
+
+---
+
+## Consentement publicitaire (RGPD)
+
+Le bandeau est en place. Sa logique tient en une règle, et c'est elle qui le
+rend non invasif :
+
+| État | Ce qui se charge |
+|---|---|
+| Pas de réponse, ou refus | **Aucun script de régie.** Seules nos annonces maison, qui ne déposent rien. |
+| Acceptation | La régie est chargée. |
+
+Conséquences directes :
+
+- **Aujourd'hui, aucun bandeau ne s'affiche.** Tant qu'`ADSENSE_CLIENT` n'est
+  pas défini, il n'y a aucun cookie tiers, donc rien à consentir. Zéro friction
+  ajoutée pour tes joueurs actuels.
+- **Refuser ne dégrade rien** : la partie est identique, l'emplacement affiche
+  l'autopromo. Le joueur ne perd aucune fonctionnalité, et l'offre VIP continue
+  d'être vue.
+- Le bandeau **ne s'affiche jamais pendant une partie** — personne ne coupe une
+  soirée pour parler de cookies.
+- « Refuser » et « Accepter » ont la même taille et le même poids visuel, comme
+  l'exige la CNIL. Un bouton fantôme à côté d'un bouton coloré serait considéré
+  comme un choix non libre.
+- Le choix est gardé **6 mois**, puis redemandé. Il est modifiable à tout moment
+  via « Publicité » sur l'écran d'accueil. Changer les finalités ? Incrémente
+  `VERSION` dans `client/src/lib/consent.ts` : le choix est redemandé à tous.
+- `PRIVACY_URL` : dès que ta politique de confidentialité est en ligne, pose la
+  variable et le lien apparaît dans les détails du bandeau. Sans elle, pas de
+  lien mort.
+
+### La limite à connaître
+
+Pour servir de la publicité **personnalisée** dans l'EEE et au Royaume-Uni,
+Google exige une **CMP certifiée** implémentant le TCF v2.2. Un bandeau maison,
+même irréprochable juridiquement, ne coche pas cette case-là.
+
+Deux chemins possibles :
+
+1. **Garder ce bandeau** et activer, dans la console AdSense,
+   « Confidentialité et messages » (Funding Choices) — la CMP de Google,
+   gratuite et certifiée. Elle gère le signal TCF ; notre bandeau garde le
+   contrôle du chargement des scripts. C'est le chemin le plus court.
+2. **Passer par une CMP tierce** certifiée (Axeptio, Didomi, Sirdata…) et
+   remplacer notre bandeau par le leur. Plus lourd, souvent payant, utile
+   surtout si tu vises plusieurs régies.
+
+Dans les deux cas, le verrou côté code reste utile : c'est lui qui garantit
+qu'aucun script publicitaire ne part avant une acceptation.
 
 ---
 
@@ -138,6 +185,11 @@ ADMOB_APP_ID=ca-app-pub-…
 ADMOB_UNIT_BANNER=…
 ADMOB_UNIT_INTERSTITIAL=…
 ```
+
+Aucune pub n'est chargée dans l'app native pour l'instant (pas de plugin
+AdMob installé) — donc rien à consentir de ce côté aujourd'hui. Le jour où tu
+l'ajoutes, le consentement mobile passe par le **UMP SDK** de Google, pas par
+notre bandeau web : à brancher en même temps que le plugin.
 
 L'endpoint `POST /api/billing/mobile-purchase` existe mais **refuse
 volontairement** (501) tant que la validation de reçu n'est pas branchée sur
@@ -183,7 +235,9 @@ Ce que ça dit clairement :
 
 ## Ce qui reste à faire avant d'encaisser
 
-- [ ] Bannière de consentement RGPD (bloquant pour AdSense en Europe)
+- [x] Bandeau de consentement (fait) — reste à activer la CMP certifiée Google
+      (« Confidentialité et messages » dans la console AdSense) avant de servir
+      de la pub personnalisée dans l'EEE
 - [ ] CGV / mentions légales / confidentialité (bloquant pour Stripe)
 - [ ] Héberger les polices en local (risque CNIL, 10 min)
 - [ ] Clés Stripe + produits créés

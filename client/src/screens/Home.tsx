@@ -6,6 +6,7 @@ import { Brand } from "../components/Brand";
 import { Card } from "../components/Card";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { ConsentLink } from "../components/ConsentBanner";
 
 interface Props {
   prefilledCode?: string | null;
@@ -70,7 +71,7 @@ export function Home({ prefilledCode }: Props) {
   return (
     <div className="relative h-full w-full overflow-y-auto no-scrollbar">
       <ThemeToggle />
-      <div className="min-h-full grid place-items-center px-5 py-10">
+      <div className="min-h-full grid place-items-center px-5 py-10" style={{ paddingBottom: "var(--consent-pad, 0px)" }}>
         <div className="w-full max-w-md flex flex-col items-center gap-7">
           <div className="flex flex-col items-center text-center gap-2">
             <Brand size="lg" />
@@ -95,6 +96,7 @@ export function Home({ prefilledCode }: Props) {
                 <a href="/moi" className="label text-center mt-1 hover:text-ink" style={{ color: "var(--accent-deep)" }}>
                   {user ? "🔒 Mon espace (questions privées)" : "🔒 Se connecter · créer mes questions"}
                 </a>
+                <ConsentLink className="mt-0.5 text-center" />
               </Card>
             )}
 

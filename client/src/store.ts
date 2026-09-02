@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import type { AppConfig, CategoryMeta, FinalData, Lobby, RevealData, User } from "./types";
 import { API_BASE, apiFetch, getToken, setToken } from "./lib/api";
+import { forgetConsent, readConsent, writeConsent, type Consent } from "./lib/consent";
 
 const SESSION_KEY = "qui_session";
 // `secret` = jeton de reprise remis par le serveur ; il prouve qu'on est bien
@@ -42,6 +43,7 @@ interface State {
   categories: CategoryMeta[];
   user: User | null;
   config: AppConfig | null;
+  consent: Consent | null;
   theme: "light" | "dark";
   view: "home" | "create" | "join" | "lobby" | "game" | "final";
 
@@ -49,6 +51,8 @@ interface State {
   connect: () => Socket;
   loadCategories: () => Promise<void>;
   loadConfig: () => Promise<void>;
+  setConsent: (c: Consent) => void;
+  reopenConsent: () => void;
   loadMe: () => Promise<void>;
   logout: () => Promise<void>;
   setPseudo: (p: string) => void;
@@ -91,6 +95,7 @@ export const useStore = create<State>((set, get) => ({
   categories: [],
   user: null,
   config: null,
+  consent: readConsent(),
   theme: initialTheme(),
   view: "home",
 
@@ -108,6 +113,18 @@ export const useStore = create<State>((set, get) => ({
       const res = await apiFetch("/api/categories");
       if (res.ok) set({ categories: await res.json() });
     } catch {}
+  },
+
+  // Le choix publicitaire vit dans le store : l'emplacement pub s'y abonne et
+  // ne charge la régie qu'après une acceptation explicite.
+  setConsent: (c) => {
+    writeConsent(c);
+    set({ consent: c });
+  },
+
+  reopenConsent: () => {
+    forgetConsent();
+    set({ consent: null });
   },
 
   loadConfig: async () => {

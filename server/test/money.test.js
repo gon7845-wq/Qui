@@ -46,6 +46,9 @@ test("/api/config expose la politique pub et les offres, sans rien de secret", a
   assert.ok(cfg.ads.policy.seconds >= 3, "durée d'un entracte");
   assert.ok(Array.isArray(cfg.ads.house) && cfg.ads.house.length > 0, "des pubs maison en secours");
   assert.ok(Array.isArray(cfg.billing.plans) && cfg.billing.plans.length >= 2, "au moins deux offres");
+  // Le bandeau de consentement n'affiche le lien « confidentialité » que si la
+  // page existe : la clé doit donc toujours être présente, même à null.
+  assert.ok(cfg.legal && "privacyUrl" in cfg.legal, "l'URL de confidentialité est exposée (même absente)");
   for (const p of cfg.billing.plans) {
     assert.ok(p.price > 0 && p.label && p.period, "offre complète");
     assert.equal(typeof p.buyable, "boolean");

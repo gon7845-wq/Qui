@@ -81,7 +81,7 @@ export function Final() {
 
       {current.total > 0 && rankIdx === 0 && <Confetti seed={current.id} count={70} />}
 
-      <div className="min-h-full grid place-items-center px-5 py-16">
+      <div className="min-h-full grid place-items-center px-5 py-16" style={{ paddingBottom: "var(--consent-pad, 0px)" }}>
         <div className="w-full max-w-lg flex flex-col items-center gap-5">
           <div className="text-center">
             <div className="font-display brand-gradient" style={{ fontSize: "clamp(28px,6vmin,46px)" }}>

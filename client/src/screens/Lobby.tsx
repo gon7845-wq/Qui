@@ -71,7 +71,7 @@ export function Lobby() {
       </button>
       <ThemeToggle />
 
-      <div className="min-h-full grid place-items-center px-5 py-16">
+      <div className="min-h-full grid place-items-center px-5 py-16" style={{ paddingBottom: "var(--consent-pad, 0px)" }}>
         <div className="w-full max-w-2xl flex flex-col items-center gap-7">
           <Card className="w-full p-7 text-center">
             <div className="label text-ink-soft">Code de la partie</div>
