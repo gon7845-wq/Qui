@@ -1,11 +1,22 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { ensureServer, stopServer, client, makeLobby, sleep } from "./helpers.js";
+import { ensureServer, stopServer, client, makeLobby, sleep, api } from "./helpers.js";
 
 before(ensureServer);
 after(stopServer);
 
 const S = { voteDuration: 3, questionCount: 3 };
+
+// La durée des entractes dépend de la configuration du serveur ciblé (locale
+// ou déployée) : on la lit plutôt que de la supposer.
+async function adSeconds() {
+  try {
+    const cfg = await (await api("/api/config")).json();
+    return cfg.ads.policy.seconds ?? 7;
+  } catch {
+    return 7;
+  }
+}
 
 const lastUpdate = (c) => [...c.log].reverse().find((e) => e.ev === "lobby:update").data;
 
@@ -21,7 +32,7 @@ async function finishGame(L, targetPid, rounds, done = 0) {
     }
   }
   L.host.send("game:next");
-  return L.host.wait("game:end", null, 12000);
+  return L.host.wait("game:end", null, (await adSeconds()) * 1000 + 10000);
 }
 
 test("création : code à 4 caractères et hôte seul dans le lobby", async () => {
@@ -160,10 +171,12 @@ test("partie complète : décompte, votes, révélation, scores, classement fina
     assert.ok(rev.votes && Object.keys(rev.votes).length === 3, "votes visibles en mode non anonyme");
     expected += round === 3 ? 2 : 3;
 
-    if (round < 3) L.host.send("game:next");
+    L.host.send("game:next"); // saute la révélation, y compris à la dernière manche
   }
 
-  const end = await L.host.wait("game:end", null, 14000);
+  // Après la dernière manche il peut rester un entracte publicitaire à passer :
+  // sa durée est décidée par le serveur ciblé, on la lui demande.
+  const end = await L.host.wait("game:end", null, (await adSeconds()) * 1000 + 8000);
   assert.equal(end.finalRanking[0].id, j1.pid);
   assert.equal(end.finalRanking[0].score, expected, "score = total des voix reçues");
   assert.equal(end.history.length, 3);
@@ -270,7 +283,8 @@ test("reconnexion : on retrouve sa place et l'état de la manche", async () => {
   await L.host.wait("lobby:update", (l) => l.state === "question", 8000);
 
   victim.c.close();
-  await L.host.next("lobby:update", (l) => l.players.some((p) => p.id === victim.pid && !p.connected), 5000);
+  // la fermeture de socket doit traverser le proxy de l hébergeur : large
+  await L.host.next("lobby:update", (l) => l.players.some((p) => p.id === victim.pid && !p.connected), 20000);
 
   const back = client();
   await back.ready();
@@ -279,7 +293,7 @@ test("reconnexion : on retrouve sa place et l'état de la manche", async () => {
   assert.equal(r.selfId, victim.pid);
   assert.equal(r.lobby.state, "question");
   assert.ok(r.lobby.currentQuestion && r.lobby.currentQuestion.text, "la question en cours est renvoyée");
-  const upd = await L.host.next("lobby:update", (l) => l.players.some((p) => p.id === victim.pid && p.connected), 5000);
+  const upd = await L.host.next("lobby:update", (l) => l.players.some((p) => p.id === victim.pid && p.connected), 20000);
   assert.equal(upd.players.length, 3);
   back.close();
   L.close();

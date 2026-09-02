@@ -45,7 +45,9 @@ test("l'API admin refuse sans clé et avec une mauvaise clé", async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: "mauvais" }),
   });
-  assert.equal(r.status, 401);
+  // 429 est aussi un refus : le test anti-force brute plus bas peut avoir
+  // épuisé le quota de cette IP sur un run précédent.
+  assert.ok([401, 429].includes(r.status), `refus attendu, reçu ${r.status}`);
 });
 
 test("l'espace membre refuse sans session", async () => {

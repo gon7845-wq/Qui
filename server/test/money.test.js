@@ -107,12 +107,15 @@ test("un entracte s'intercale toutes les N manches, puis avant les résultats", 
 
 test("l'hôte ne peut pas passer l'entracte avant le délai serveur ; un invité jamais", async () => {
   const cfg = await (await api("/api/config")).json();
-  const L = await makeLobby({ voteDuration: 3, questionCount: 3 }, 2);
+  const every = cfg.ads.policy.everyRounds;
+  // Il faut au moins une manche APRÈS l'entracte de cadence : sinon c'est
+  // l'entracte d'avant-résultats et la partie se termine au lieu d'enchaîner.
+  const rounds = Math.max(3, every + 1);
+  const L = await makeLobby({ voteDuration: 3, questionCount: rounds }, 2);
   const target = L.players[1].pid;
   L.host.send("game:start");
 
-  // on va jusqu'au premier entracte (cadence) sans attendre la fin de partie
-  for (let round = 1; round <= cfg.ads.policy.everyRounds; round++) {
+  for (let round = 1; round <= every; round++) {
     await playRound(L, round, target);
   }
   await L.host.next("lobby:update", (l) => l.state === "ad", 8000);
@@ -136,8 +139,8 @@ test("l'hôte ne peut pas passer l'entracte avant le délai serveur ; un invité
   L.host.send("game:adskip");
   const next = await L.host.next(
     "lobby:update",
-    (l) => l.state === "question" && l.currentRound === cfg.ads.policy.everyRounds + 1,
-    5000
+    (l) => l.state === "question" && l.currentRound === every + 1,
+    15000
   );
   assert.equal(next.adEndTime, null, "la minuterie d'entracte est remise à zéro");
   L.close();
@@ -321,7 +324,15 @@ function postWebhook(payload, sig) {
 test("le webhook rejette une signature absente, fausse ou périmée", async () => {
   const payload = JSON.stringify({ type: "checkout.session.completed", data: { object: {} } });
 
-  assert.equal((await postWebhook(payload)).status, 400, "sans signature");
+  // Sur une cible sans STRIPE_WEBHOOK_SECRET, l'endpoint répond 501 avant même
+  // de regarder la signature : rien à vérifier de plus, et surtout rien
+  // d'accordé. On ne peut tester le rejet de signature que si le secret existe.
+  const sansSecret = await postWebhook(payload);
+  if (sansSecret.status === 501) {
+    assert.match((await sansSecret.json()).error, /configur/i, "le refus doit dire ce qui manque");
+    return;
+  }
+  assert.equal(sansSecret.status, 400, "sans signature");
   assert.equal((await postWebhook(payload, "t=1,v1=deadbeef")).status, 400, "signature fausse");
   assert.equal(
     (await postWebhook(payload, stripeSig(payload, "whsec_pas_le_bon"))).status,
