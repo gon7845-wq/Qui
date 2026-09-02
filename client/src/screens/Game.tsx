@@ -7,6 +7,8 @@ import { VoteReactions } from "../components/VoteReactions";
 import { Confetti } from "../components/Confetti";
 import { PauseOverlay } from "../components/PauseOverlay";
 import { Countdown } from "../components/Countdown";
+import { AdBreak } from "../components/AdBreak";
+import { AdSlot } from "../components/AdSlot";
 import { TONE, tone } from "../lib/colors";
 import { useNow } from "../lib/useNow";
 import type { Ranked } from "../types";
@@ -18,6 +20,7 @@ export function Game() {
   const isQuestion = lobby.state === "question" && !reveal;
   const isReveal = lobby.state === "reveal" && reveal;
   const isCountdown = lobby.state === "countdown" && !!lobby.countdownEndTime;
+  const isAdBreak = lobby.state === "ad" && !!lobby.adEndTime;
   const isHost = lobby.hostId === selfId;
   const canPause = isHost && !lobby.paused && (isQuestion || isReveal);
 
@@ -45,6 +48,8 @@ export function Game() {
       )}
 
       {isCountdown && <Countdown endTime={lobby.countdownEndTime!} />}
+
+      <AnimatePresence>{isAdBreak && <AdBreak />}</AnimatePresence>
 
       <AnimatePresence>
         {lobby.paused && <PauseOverlay isHost={isHost} onResume={resume} />}
@@ -254,6 +259,10 @@ function RevealPhase() {
         highlightId={stage === "verdict" && hasResult ? top.id : null}
         dimOthers={stage === "verdict" && hasResult}
       />
+
+      {/* La révélation dure ~9 s, tous les yeux sont sur l'écran et personne
+          n'attend : c'est le meilleur emplacement non intrusif du jeu. */}
+      {stage === "verdict" && <AdSlot format="banner" seed={reveal.round} />}
 
       {isHost && (
         <button

@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { AdSlot } from "../components/AdSlot";
 import { SHARE_ORIGIN } from "../lib/api";
 
 const AVATAR_KEY = "qui_avatar";
@@ -168,6 +169,8 @@ export function Lobby() {
           </Card>
 
           <PlayerGrid players={lobby.players} selfId={selfId} />
+
+          <AdSlot format="banner" seed={lobby.players.length} />
         </div>
       </div>
     </div>

@@ -9,7 +9,8 @@
     "start": "node server/index.js",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
-    "postinstall": "echo \"root install done\""
+    "postinstall": "echo \"root install done\"",
+    "test": "npm --prefix server test"
   },
   "engines": {
     "node": ">=20.0.0"

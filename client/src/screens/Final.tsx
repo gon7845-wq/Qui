@@ -7,6 +7,7 @@ import { Avatar } from "../components/Avatar";
 import { Confetti } from "../components/Confetti";
 import { TONE, tone, type Tone } from "../lib/colors";
 import { punchlineFor } from "../lib/punchlines";
+import { AdSlot } from "../components/AdSlot";
 
 interface Entry {
   text: string;
@@ -149,6 +150,8 @@ export function Final() {
               </Button>
             )}
           </div>
+
+          <AdSlot format="banner" seed={rankIdx} />
         </div>
       </div>
     </div>

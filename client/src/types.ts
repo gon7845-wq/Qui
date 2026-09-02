@@ -1,4 +1,4 @@
-export type LobbyState = "waiting" | "countdown" | "question" | "reveal" | "ended";
+export type LobbyState = "waiting" | "countdown" | "question" | "reveal" | "ad" | "ended";
 
 export interface Question {
   text: string;
@@ -54,6 +54,51 @@ export interface Lobby {
   countdownEndTime: number | null;
   votesCount: number;
   paused: boolean;
+  // false = l'hôte est VIP, aucune publicité pour toute la table
+  ads: boolean;
+  adEndTime: number | null;
+  adSkipAt: number | null;
+}
+
+export interface HouseAd {
+  id: string;
+  kind: "vip" | "feature" | "share";
+  title: string;
+  body: string;
+  cta: string;
+  href: string | null;
+  tone: "warm" | "spicy" | "fun";
+}
+
+export interface AdConfig {
+  policy: { everyRounds: number; seconds: number; skipAfter: number };
+  adsense: { client: string; banner: string | null; interstitial: string | null } | null;
+  admob: { appId: string; banner: string | null; interstitial: string | null } | null;
+  houseOnly: boolean;
+  house: HouseAd[];
+}
+
+export interface Plan {
+  id: string;
+  label: string;
+  price: number; // centimes
+  currency: string;
+  period: string;
+  mode: "subscription" | "payment";
+  pitch: string;
+  best?: boolean;
+  buyable: boolean;
+}
+
+export interface BillingConfig {
+  plans: Plan[];
+  freePrivateQuestions: number;
+  checkout: "stripe" | null;
+}
+
+export interface AppConfig {
+  ads: AdConfig;
+  billing: BillingConfig;
 }
 
 export interface Ranked {

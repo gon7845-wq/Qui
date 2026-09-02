@@ -9,7 +9,7 @@ import { Admin } from "./screens/Admin";
 import { Member } from "./screens/Member";
 
 export default function App() {
-  const { view, connect, loadCategories, loadMe } = useStore();
+  const { view, connect, loadCategories, loadMe, loadConfig } = useStore();
 
   const path = window.location.pathname;
   const isAdmin = path.startsWith("/admin");
@@ -23,11 +23,12 @@ export default function App() {
   useEffect(() => {
     if (isAdmin) return;
     loadMe();
+    loadConfig();
     if (!isMember) {
       connect();
       loadCategories();
     }
-  }, [connect, loadCategories, loadMe, isAdmin, isMember]);
+  }, [connect, loadCategories, loadMe, loadConfig, isAdmin, isMember]);
 
   return (
     <div className="relative h-full w-full">

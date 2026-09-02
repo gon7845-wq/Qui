@@ -14,20 +14,17 @@ const ALLOW_DEV_LOGIN = process.env.ALLOW_DEV_LOGIN === "true";
 export async function upsertUser({ email, name, avatar, provider }) {
   email = String(email || "").trim().toLowerCase();
   if (!email || !email.includes("@")) throw new Error("Email invalide");
-  const found = await q("SELECT id, email FROM users WHERE email = $1", [email]);
-  if (found.rows[0]) {
-    await q(
-      "UPDATE users SET name = COALESCE($2, name), avatar = COALESCE($3, avatar) WHERE id = $1",
-      [found.rows[0].id, name || null, avatar || null]
-    );
-    return found.rows[0];
-  }
-  const id = randomUUID();
-  await q(
-    "INSERT INTO users (id, email, name, avatar, provider) VALUES ($1,$2,$3,$4,$5)",
-    [id, email, name || null, avatar || null, provider || "email"]
+  // Un seul aller-retour, et pas de course possible : deux connexions
+  // simultanées sur la même adresse ne peuvent plus violer l'unicité.
+  const { rows } = await q(
+    `INSERT INTO users (id, email, name, avatar, provider) VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (email) DO UPDATE
+       SET name = COALESCE(EXCLUDED.name, users.name),
+           avatar = COALESCE(EXCLUDED.avatar, users.avatar)
+     RETURNING id, email`,
+    [randomUUID(), email, name || null, avatar || null, provider || "email"]
   );
-  return { id, email };
+  return rows[0];
 }
 
 export async function getUserById(id) {

@@ -7,6 +7,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { TONE, type Tone } from "../lib/colors";
 import { API_BASE, apiFetch, isNative } from "../lib/api";
 import { Browser } from "@capacitor/browser";
+import { VipCard } from "../components/VipCard";
 
 interface Category { id: string; name: string; emoji: string; tone: Tone; count: number }
 interface Question { id: string; text: string; categoryId: string; enabled: boolean }
@@ -166,6 +167,10 @@ function Dashboard({ onLogout, email, name }: { onLogout: () => void; email: str
 
         <div className="mt-3 label text-ink-soft">
           Tes questions privées s'ajoutent à tes parties quand tu es l'hôte. 🔒
+        </div>
+
+        <div className="mt-5">
+          <VipCard onChanged={reload} />
         </div>
 
         <div className="mt-4 flex gap-2">

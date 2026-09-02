@@ -1,18 +1,20 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
-import type { CategoryMeta, FinalData, Lobby, RevealData, User } from "./types";
+import type { AppConfig, CategoryMeta, FinalData, Lobby, RevealData, User } from "./types";
 import { API_BASE, apiFetch, getToken, setToken } from "./lib/api";
 
 const SESSION_KEY = "qui_session";
-function saveSession(code: string, pid: string) {
+// `secret` = jeton de reprise remis par le serveur ; il prouve qu'on est bien
+// ce joueur (le pid, lui, est visible par toute la table).
+function saveSession(code: string, pid: string, secret: string) {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ code, pid }));
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ code, pid, secret }));
   } catch {}
 }
-function readSession(): { code: string; pid: string } | null {
+function readSession(): { code: string; pid: string; secret: string } | null {
   try {
     const o = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-    return o && o.code && o.pid ? o : null;
+    return o && o.code && o.pid && o.secret ? o : null;
   } catch {
     return null;
   }
@@ -39,12 +41,14 @@ interface State {
   errorMsg: string | null;
   categories: CategoryMeta[];
   user: User | null;
+  config: AppConfig | null;
   theme: "light" | "dark";
   view: "home" | "create" | "join" | "lobby" | "game" | "final";
 
   toggleTheme: () => void;
   connect: () => Socket;
   loadCategories: () => Promise<void>;
+  loadConfig: () => Promise<void>;
   loadMe: () => Promise<void>;
   logout: () => Promise<void>;
   setPseudo: (p: string) => void;
@@ -66,6 +70,7 @@ interface State {
   pause: () => void;
   resume: () => void;
   setAvatar: (emoji: string) => void;
+  skipAd: () => void;
   updateSettings: (settings: Partial<{
     anonymous: boolean;
     voteDuration: number;
@@ -85,6 +90,7 @@ export const useStore = create<State>((set, get) => ({
   errorMsg: null,
   categories: [],
   user: null,
+  config: null,
   theme: initialTheme(),
   view: "home",
 
@@ -101,6 +107,13 @@ export const useStore = create<State>((set, get) => ({
     try {
       const res = await apiFetch("/api/categories");
       if (res.ok) set({ categories: await res.json() });
+    } catch {}
+  },
+
+  loadConfig: async () => {
+    try {
+      const res = await apiFetch("/api/config");
+      if (res.ok) set({ config: await res.json() });
     } catch {}
   },
 
@@ -129,7 +142,7 @@ export const useStore = create<State>((set, get) => ({
       auth: (cb) => cb({ token: getToken() }),
     });
     socket.on("lobby:update", (lobby: Lobby) => {
-      if (lobby.state === "question" || lobby.state === "countdown") {
+      if (lobby.state === "question" || lobby.state === "countdown" || lobby.state === "ad") {
         set({ lobby, view: "game", reveal: null });
       } else if (lobby.state === "waiting" && get().view !== "lobby") {
         // retour au lobby (ex: "Rejouer")
@@ -198,7 +211,7 @@ export const useStore = create<State>((set, get) => ({
               selfId: res.selfId,
               view: "lobby",
             });
-            saveSession(res.code, res.selfId);
+            saveSession(res.code, res.selfId, res.secret);
             window.history.replaceState(null, "", `/r/${res.code}`);
             resolve({ ok: true });
           } else {
@@ -221,7 +234,7 @@ export const useStore = create<State>((set, get) => ({
               selfId: res.selfId,
               view: "lobby",
             });
-            saveSession(res.code, res.selfId);
+            saveSession(res.code, res.selfId, res.secret);
             window.history.replaceState(null, "", `/r/${res.code}`);
             resolve({ ok: true });
           } else {
@@ -265,6 +278,10 @@ export const useStore = create<State>((set, get) => ({
 
   setAvatar: (emoji) => {
     get().socket?.emit("lobby:avatar", { avatar: emoji });
+  },
+
+  skipAd: () => {
+    get().socket?.emit("game:adskip");
   },
 
   updateSettings: (settings) => {

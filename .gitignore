@@ -9,7 +9,8 @@ build/
 .cache/
 .railway/
 server/data/
-.claude/settings.local.json
+# réglages locaux + worktrees (contiennent des node_modules entiers)
+.claude/
 .playwright-mcp/
 *.png
 # icônes/splash des apps natives : indispensables au build

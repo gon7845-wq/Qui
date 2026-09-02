@@ -1,0 +1,21 @@
+{
+  "name": "Qui ? — le jeu de soirée",
+  "short_name": "Qui ?",
+  "description": "Le jeu où le groupe révèle le meilleur et le pire de chacun. 3 à 12 joueurs, sur le même wifi ou à distance.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF6EC",
+  "theme_color": "#FFF6EC",
+  "categories": ["games", "social", "entertainment"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}

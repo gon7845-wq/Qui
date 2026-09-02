@@ -8,9 +8,14 @@ if (!process.env.DATABASE_URL) {
   console.warn("[db] DATABASE_URL non défini — la base ne fonctionnera pas.");
 }
 
+// SSL : requis chez les hébergeurs (Railway…), impossible sur un Postgres
+// local sans TLS → on le coupe via ?sslmode=disable dans l’URL ou PGSSL=false.
+const DB_URL = process.env.DATABASE_URL || "";
+const NO_SSL = /[?&]sslmode=disable/.test(DB_URL) || process.env.PGSSL === "false";
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: DB_URL,
+  ssl: NO_SSL ? false : { rejectUnauthorized: false },
   max: 8,
 });
 
@@ -91,8 +96,25 @@ export async function initDb() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
   `);
+  // Droits payants. `users.premium` reste comme interrupteur manuel historique ;
+  // cette table porte les achats (Stripe, stores) avec leur date de fin.
+  await q(`
+    CREATE TABLE IF NOT EXISTS entitlements (
+      user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      plan text NOT NULL DEFAULT 'vip',
+      source text NOT NULL,
+      status text NOT NULL DEFAULT 'active',
+      expires_at timestamptz,
+      external_id text,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+  await q(
+    `CREATE INDEX IF NOT EXISTS idx_entitlements_active ON entitlements(status, expires_at);`
+  );
   await q(`CREATE INDEX IF NOT EXISTS idx_questions_owner ON questions(owner_id);`);
   await q(`CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories(owner_id);`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires ON auth_tokens(expires_at);`);
 
   // Seed initial (banque globale) si vide
   const { rows } = await q(`SELECT count(*)::int AS n FROM categories WHERE owner_id IS NULL`);
@@ -113,4 +135,11 @@ export async function initDb() {
     }
     console.log(`[db] Seed terminé : ${QUESTIONS.length} questions.`);
   }
+}
+
+// Un lien magique consommé est supprimé, mais pas un lien jamais cliqué :
+// sans purge la table grossit indéfiniment.
+export async function purgeExpiredTokens() {
+  const { rowCount } = await q(`DELETE FROM auth_tokens WHERE expires_at < now()`);
+  return rowCount;
 }
