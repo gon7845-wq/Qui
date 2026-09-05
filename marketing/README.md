@@ -58,20 +58,35 @@ n'empêche pas les autres.
 Copie `.env.example` en `.env` pour le local ; en CI, mets les mêmes valeurs
 dans **Settings → Secrets and variables → Actions**.
 
-### Option rapide : Upload-Post (une seule clé)
+### Option recommandée pour démarrer : Upload-Post (une seule clé, zéro console développeur)
 
-Si tu veux publier dès ce soir sans créer trois apps développeur :
-[upload-post.com](https://upload-post.com) gère l'OAuth des trois réseaux (et
-l'audit TikTok). Gratuit jusqu'à 10 envois / mois, payant au-delà.
+[upload-post.com](https://upload-post.com) porte l'OAuth des trois réseaux et
+l'audit TikTok : pas de Google Cloud, pas d'app Meta, pas d'app TikTok à créer.
 
-1. Crée un compte, connecte tes comptes TikTok / Instagram / YouTube, crée un
-   « profil » (son nom = `UPLOAD_POST_USER`).
-2. Secrets : `UPLOAD_POST_API_KEY`, `UPLOAD_POST_USER`.
+1. Crée un compte, puis **Profiles → nouveau profil** (son nom = `UPLOAD_POST_USER`).
+   Dans ce profil, connecte YouTube, Instagram (compte professionnel) et TikTok
+   en cliquant sur chaque réseau : c'est une connexion classique, comme se
+   connecter à une app.
+2. **API Keys → générer** une clé.
+3. Secrets GitHub : `UPLOAD_POST_API_KEY`, `UPLOAD_POST_USER`. C'est tout.
 
-Pour une publication **quotidienne**, la limite gratuite est vite dépassée : les
-trois intégrations directes ci-dessous sont gratuites sans limite.
+Tarif (septembre 2026) : gratuit 10 envois / mois **sans TikTok** ; **Basic
+24 $/mois** (16 $ en annuel) illimité, 5 profils. Pour une vidéo par jour sur
+trois réseaux il faut le plan Basic. Les intégrations directes ci-dessous sont
+gratuites mais demandent chacune une console développeur.
+
+Le script envoie la vidéo une fois ; Upload-Post la pousse sur les trois
+réseaux et renvoie les liens, qui apparaissent dans le résumé du run.
 
 ### YouTube Shorts (gratuit, ~15 min)
+
+> Si la page « Créer un client OAuth » de la console Google affiche *Failed to
+> load*, c'est presque toujours parce que **Google Auth Platform** n'est pas
+> encore initialisé sur le projet : ouvre d'abord
+> `https://console.cloud.google.com/auth/overview?project=<ton-projet>` →
+> *Get started*, remplis la marque et l'audience (Externe), puis reviens créer
+> le client. Un bloqueur de pubs peut aussi casser cette page : essaie en
+> navigation privée.
 
 1. [console.cloud.google.com](https://console.cloud.google.com) → nouveau projet
    → **Activer l'API « YouTube Data API v3 »**.
