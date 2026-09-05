@@ -1,0 +1,151 @@
+# Marketing automatique : une vidéo verticale par jour (Remotion), publiée sur
+# YouTube Shorts / Instagram Reels / TikTok selon les secrets présents.
+#
+# Secrets à créer (Settings → Secrets and variables → Actions), au choix :
+#   YouTube   : YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN
+#   Instagram : IG_ACCESS_TOKEN (+ IG_USER_ID, IG_APP_ID, IG_APP_SECRET si Facebook Login)
+#   TikTok    : TT_CLIENT_KEY, TT_CLIENT_SECRET, TT_REFRESH_TOKEN
+#   Upload-Post (raccourci) : UPLOAD_POST_API_KEY, UPLOAD_POST_USER
+#   GH_PAT (optionnel) : jeton personnel « repo » pour que le workflow ré-enregistre
+#                        lui-même les jetons Instagram/TikTok renouvelés.
+# Variables (Settings → Variables) optionnelles : QUI_PUBLIC_URL, YT_PRIVACY, TT_PRIVACY.
+#
+# Voir marketing/README.md pour la mise en place pas à pas.
+
+name: Marketing vidéo
+
+on:
+  schedule:
+    # 17:00 UTC = 19 h à Paris l'été, 18 h l'hiver — début de soirée, quand on cherche un jeu.
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "Format (auto = rotation du jour)"
+        type: choice
+        default: auto
+        options: [auto, manche, rafale, bulletin]
+      seed:
+        description: "Graine (vide = date du jour). Change la question, les joueurs, le résultat."
+        type: string
+        default: ""
+      platforms:
+        description: "Plateformes : youtube,instagram,tiktok,uploadpost (vide = toutes celles configurées)"
+        type: string
+        default: ""
+      dry_run:
+        description: "Tout faire sauf publier"
+        type: boolean
+        default: false
+
+concurrency:
+  group: marketing
+  cancel-in-progress: false
+
+permissions:
+  contents: write # dépôt de la vidéo en release (URL publique pour Instagram)
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: marketing
+    env:
+      QUI_PUBLIC_URL: ${{ vars.QUI_PUBLIC_URL || 'https://qui-production-8582.up.railway.app' }}
+      DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+      PLATFORMS: ${{ inputs.platforms }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: marketing/package-lock.json
+
+      # Chrome headless (Remotion) + police emoji couleur, sinon les emojis sortent en carrés.
+      - name: Dépendances système
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libnss3 libdbus-1-3 libatk1.0-0t64 libgbm1 libasound2t64 libxrandr2 libxkbcommon0 \
+            libxfixes3 libxcomposite1 libxdamage1 libatk-bridge2.0-0t64 libpango-1.0-0 libcairo2 \
+            libcups2t64 fonts-noto-color-emoji
+          fc-cache -f >/dev/null
+
+      - name: Installer
+        run: npm ci --no-audit --no-fund
+
+      - name: Planifier la vidéo du jour
+        id: plan
+        run: node scripts/plan.mjs --template "${{ inputs.template || 'auto' }}" ${{ inputs.seed && format('--seed "{0}"', inputs.seed) || '' }}
+
+      - name: Rendre (Remotion)
+        run: node scripts/render.mjs --still
+
+      - name: Garder la vidéo 30 jours
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.plan.outputs.slug }}
+          path: |
+            marketing/out/${{ steps.plan.outputs.slug }}/video.mp4
+            marketing/out/${{ steps.plan.outputs.slug }}/cover.jpg
+            marketing/out/${{ steps.plan.outputs.slug }}/meta.json
+          retention-days: 30
+
+      # Instagram télécharge la vidéo depuis une URL publique : on la dépose dans une release
+      # « marketing-media » (le dépôt est public). Ignoré si Instagram n'est pas configuré.
+      - name: Héberger la vidéo pour Instagram
+        id: host
+        if: env.HAS_IG == 'true' && env.DRY_RUN != '1'
+        env:
+          HAS_IG: ${{ secrets.IG_ACCESS_TOKEN != '' }}
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ steps.plan.outputs.slug }}
+        run: |
+          gh release view marketing-media --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create marketing-media --repo "$GITHUB_REPOSITORY" --title "Vidéos marketing (hébergement)" \
+              --notes "Vidéos générées automatiquement, hébergées ici le temps qu'Instagram les récupère." --latest=false
+          cp "out/$SLUG/video.mp4" "out/$SLUG.mp4"
+          gh release upload marketing-media "out/$SLUG.mp4" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "media_url=https://github.com/$GITHUB_REPOSITORY/releases/download/marketing-media/$SLUG.mp4" >> "$GITHUB_OUTPUT"
+          # ménage : on ne garde que les 14 dernières vidéos hébergées
+          gh release view marketing-media --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | sort | head -n -14 | \
+            while read -r old; do [ -n "$old" ] && gh release delete-asset marketing-media "$old" --repo "$GITHUB_REPOSITORY" -y || true; done
+
+      - name: Publier
+        env:
+          MEDIA_URL: ${{ steps.host.outputs.media_url }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_PRIVACY: ${{ vars.YT_PRIVACY || 'public' }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID || 'me' }}
+          IG_APP_ID: ${{ secrets.IG_APP_ID }}
+          IG_APP_SECRET: ${{ secrets.IG_APP_SECRET }}
+          IG_GRAPH_HOST: ${{ vars.IG_GRAPH_HOST || 'graph.instagram.com' }}
+          TT_CLIENT_KEY: ${{ secrets.TT_CLIENT_KEY }}
+          TT_CLIENT_SECRET: ${{ secrets.TT_CLIENT_SECRET }}
+          TT_REFRESH_TOKEN: ${{ secrets.TT_REFRESH_TOKEN }}
+          TT_PRIVACY: ${{ vars.TT_PRIVACY || 'PUBLIC_TO_EVERYONE' }}
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          UPLOAD_POST_USER: ${{ secrets.UPLOAD_POST_USER }}
+        run: node scripts/publish.mjs
+
+      # Instagram et TikTok renvoient de nouveaux jetons : on les ré-enregistre pour la prochaine fois.
+      # Nécessite un jeton personnel (GH_PAT, portée « repo ») — le GITHUB_TOKEN ne peut pas écrire les secrets.
+      - name: Ré-enregistrer les jetons renouvelés
+        if: always() && env.HAS_PAT == 'true'
+        env:
+          HAS_PAT: ${{ secrets.GH_PAT != '' }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          f=out/rotated-secrets.env
+          [ -f "$f" ] || { echo "Aucun jeton à renouveler."; exit 0; }
+          while IFS='=' read -r k v; do
+            [ -n "$k" ] && gh secret set "$k" --repo "$GITHUB_REPOSITORY" --body "$v" && echo "secret $k mis à jour"
+          done < "$f"
+          rm -f "$f"

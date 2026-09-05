@@ -8,6 +8,7 @@ Jeu de soirée : le groupe vote, et révèle le meilleur et le pire de chacun.
   PostgreSQL (`server/`)
 - **Mobile** : Capacitor (Android / iOS) — voir [PUBLICATION.md](PUBLICATION.md)
 - **Revenus** : pubs entre les manches + VIP — voir [MONETISATION.md](MONETISATION.md)
+- **Marketing** : vidéos Shorts / Reels / TikTok générées et publiées chaque jour — voir [marketing/README.md](marketing/README.md)
 
 ## Démarrer en local
 

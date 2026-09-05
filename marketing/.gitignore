@@ -1,0 +1,6 @@
+node_modules/
+out/
+.env
+# musiques libres de droits : à déposer localement / en CI, pas dans le dépôt
+public/music/*
+!public/music/.gitkeep

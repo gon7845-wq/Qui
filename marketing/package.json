@@ -1,0 +1,31 @@
+{
+  "name": "qui-marketing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Qui ? — génération de vidéos verticales (Remotion) et publication Shorts / Reels / TikTok",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "plan": "node scripts/plan.mjs",
+    "render": "node scripts/render.mjs",
+    "publish": "node scripts/publish.mjs",
+    "daily": "node scripts/plan.mjs && node scripts/render.mjs && node scripts/publish.mjs",
+    "auth:youtube": "node scripts/auth/youtube.mjs",
+    "auth:tiktok": "node scripts/auth/tiktok.mjs",
+    "auth:instagram": "node scripts/auth/instagram.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.520",
+    "@remotion/google-fonts": "4.0.520",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.520",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "typescript": "5.7.2"
+  }
+}
